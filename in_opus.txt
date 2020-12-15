@@ -1,0 +1,551 @@
+ /-------------------------------------------------------------------------\
+/              OPUS FILE DECODER PLUGIN FOR WINAMP 2+ (V0.911)              \
+|                        RELEASED SEPTEMBER 13, 2020                        |
++- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -+
+| Author: Raymond Gillibert.                                                |
+| You can write me to the e-mail address raymond_gillibert at yahoo.fr      |
++---------------------------------------------------------------------------+
+
+JUST COPY The 'in_opus.dll' file in your Winamp "Plugin" directory,
+usually: "C:\Program Files\Winamp\Plugin" (No additional files required).
+
+You set options by writing in the winamp.ini file or in the in_opus.ini file
+in the plugin directory see below the OPTIONS for more details.
+Go read the CHANGELOG below for latest news...
+
+=============================================================================
+== PURPOSE                                                                 ==
+=============================================================================
+Opus is a quite new audio file format, very good for generic lossy
+compression especially at low bitrates including voice.
+
+I developed this plugin because I wanted to be able to play OPUS files
+with Winamp 2, both on my Windows XP machine and an old Windows 98 SE,
+That is still used for playing music and for retro gaming at my home.
+
+I had to build myself the libraries because they include dependencies
+that are not present on this old OS.
+
+The plugin was tested and works fine on Windows 95/98SE/NT4/2000/XP/2003/7.
+
+There is a very good plugin that was already written by thinktink but
+it only works for Winamp 5 and recent windows versions.
+
+I provide this plugin for compatibility with old platforms. to my knowledge,
+this is the only Opus player for Windows 9x. and some of you may still
+use Winamp 2 for some reasons.
+
+=============================================================================
+== THIS PROGRAM IS BASED ON                                                ==
+=============================================================================
+libopus 1.3.1, * opusfile 0.12 (http://opus-codec.org/)
+libogg 1.3.2 (http://xiph.org/ogg/)
+Compiled using gcc from TDM-GCC-5.1, (MinGW) running on Windows Server 2003
+
+=============================================================================
+== FEATURES                                                                ==
+=============================================================================
+* Opens *.opus and *.opu files contained in an ogg stream (this is what opus
+  files are supposed to be anyway) the extension has to be .opu or .opus.
+
+* Opens HTTP OPUS Radio streams since v0.610, displays Shoutcast/Icecast
+  server info on Alt+3 since v0.888.
+
+* Displays most standard Tags values (Title, Artist, Date... on Alt+3)
+  In addition there is a panel at the bottom of the Tag dialog box,
+  displaying the content of the "DESCRIPTION" tag, used by youtube-dl
+  for the video comment when using the --add-metadata switch.
+
+* Full replaygain support.
+
+* Output at any rate from 1-192kHz, since v0.777,
+  and using 8, 16, 24 or 32 bits per samples wince v0.892.
+
+* Runs on Windows 95/98SE/NT4/2000/XP/2003/7/8/10, with Winamp 2.x, 5.x,
+  WACUP and XMPlay 2.1+. You need XMPlay3.7+ to enable UNICODE_FILE.
+  Finally the plugin was tested with MediaMonkey 3.2.5 and 4.1.29
+
+* UNICODE filename support (v0.666+) under Windows NT4+ as well as UNICODE
+  tags support (v0.555+).
+
+=============================================================================
+== LIMITATIONS                                                             ==
+=============================================================================
+I did not want to lose time so there are some limitations,
+they may change in the future if I continue the project.
+
+* No way to edit tags.
+
+* UTF-8 is not really supported under Win9x; all tags are converted
+  to Windows-1252 for display  Thus you will not have all the Unicode
+  characters. Not a big deal if you are from a European country.
+  Under NT the UTF-8 strings are converted to UTF-16 since 0.555.
+
+* In the Winamp playlist only the filename/URL will be visible.
+  Since v0.911 proper format will be shown in the PL on Winamp 5.x
+
+=============================================================================
+== CONFIGURATION OPTIONS (OPTIONAL, DO NOT BOTHER IF YOU ARE NOT SURE)     ==
+=============================================================================
+A set of options is provided. You can write them manually in "winamp.ini"
+in the winamp program directory in the section [IN_OPUS].
+
+You can also write them in the "in_opus.ini" in the Plugin directory since
+version 0.888.
+
+WRITING THOSE OPTION IS NOT NECESSARY. ALL OF THEM HAVE DEFAULT VALUES
+THAT ARE SPECIFIED BELOW. ONLY WRITE THE OPTIONS THAT YOU WANT TO MODIFY
+FROM THEIR DEFAULT VALUES.
+                             ; Comment (cannot be put in the .ini file)
+[IN_OPUS]
+USE_REPLAY_GAIN=0            ; 0: Off 1: album 2: track 3: Auto, 4: Null
+PRE_GAIN=0.0                 ; Pre-amplification gain in dB for files
+RADIO_GAIN=-3.0              ; Pre-amplification gain in dB for RADIO
+THREAD_PRIORITY=1            ; Decode priority 0: normal, 1: above normal...
+USE_DITHERING=1              ; 1/0 enable/disable dithering (default 1)
+TAGS_DISPLAY_MODE=3          ; 0: Raw, 1: ANSI, 2: Unicode, 3: Auto
+TAGS_FONT=10 Times New Roman ; Font size   Font name to be used in InfoBox
+UNICODE_FILE=2               ; 0/1/2, Off/On/Auto, Unicode filenames support
+OUT_SAMPLERATE=48000         ; Sample rate used for output (48kHz default)
+RESAMPLE_Q=2                 ; Resampling quality (0-4) 4 highest quality
+OUT_BITS=16                  ; Bits per sample to output (default 16)
+INTERNAL_VOLUME=0            ; 0/1 enable/disable internal volume handeling
+TARGET_LUFS=-23              ; Loudness at which to play back (default -23)
+OGGEXT_HACK=0                ; 1/0 Hack for .ogg extension on/off (default 0)
+UNIFIED_DIALOG=0             ; Toggles Winamp 5.5+ unified dialog on Alt+3
+INSTANT_BR=1                 ; Enables instant bitrate display (default 1)
+
+Set USE_REPLAY_GAIN=1 to use Album gain and set it to 2 for track gain,
+or 0 to disable replay gain (default). You can set it to 3 to use auto-
+matically Track gain in SHUFFLE mode and Album gain otherwise. Finally,
+you can set it to 4 to disable even the Header gain, that otherwise will
+always be applied as the norms specifies. This value is not recommended.
+In other words:
+
+USE_REPLAY_GAIN values are and mean:
+
+0 -> Header gain Only (DEFAULT)
+1 -> Album mode => Header gain + Album Gain
+2 -> Track mode => Header gain + Track Gain
+3 -> Automatic Track/Album mode depending on shuffle on/off
+4 -> Raw signal, no header gain applied (not recommended).
+
+The PRE_GAIN value is a preamplification factor in dB that is applied before
+the gain. you should consider putting a negative value if you experience
+clipping problems. A common value is -6dB (ultra safe, very rare clipping)
+0 (default) is usually OK because the gain is almost always negative anyway.
+You should use the same parameters with the others plugins.
+If you are reading this, it means you know what you are doing anyway.
+Note that since v0.777 this option only applies to FILES and not radio.
+
+The RADIO_GAIN is same than PRE_GAIN but reserved to RADIO streams.
+The default value is -3dB because many radio streams are wrongly encoded.
+
+You can set the decode priority thread (default is 1, above normal) other
+values are: -2: Lowest, -1: Below Normal; 0: Normal; 1: Above Normal; 2 High
+
+Set USE_DITHERING to 0 if you want to disable dithering. Default behaviour
+for all versions is to enable dithering. Disabling it may slightly decrease
+sound quality but will speed up decoding. Useful if you have a slow CPU.
+
+TAGS_DISPLAY_MODE. Set it to 0 to dump the raw utf8 string in the
+dialog, hence the character 'é' will be displayed as 'Ã©', not very nice.
+Set it to 1 to force the UTF8 -> ANSI conversion and set it to 2 to force
+the Full Unicode support (UTF-8 -> UTF16). This requires NT. by default the
+value is 3 meaning the program will automatically use full Unicode support
+on NT and convert to ANSI on Win9x.
+
+TAGS_FONT: You can specify a size (12 is the practical max) followed by the
+font name. If the size is 0, the plugin resets to default (8 MS Sans serif).
+
+UNICODE_FILE: If you use Winamp 5.3+ with Windows NT/2000/XP/Vista/7/8/10
+then set this value to 1 in order to enable UNICODE filenames support.
+This is not possible with Winamp 2.x nor if you use Win9x. If you enable it
+in those conditions the plugin WILL NOT LOAD, default is 2: Automatic you can
+also set it to 0 to disable it. Finally it can be put in in_opus.ini, and in
+winamp's folder winamp.ini file, not the user specific file because this
+setting has to be read before the plugin is loaded.
+Since version 0.911 You can set it to 3 for beter handeling of MediaMonkey.
+
+OUT_SAMPLERATE permits to set a specific output sample rate. This can be
+useful if your hardware cannot handle 48kHz, this can also be useful if
+you want to use this plugin to convert opus files to 44100 Hz wave files.
+Default value is 48000Hz which means no resampling.
+
+RESAMPLE_Q is the resampling quality. It goes from 0 (low quality) to 4 (high
+quality), note that 0 is already not bad, probably sufficient for listening.
+The default value is 2 as it gives a good compromise between performance and
+quality. Note that this value is useless unless you use resampling.
+
+OUT_BITS is the sample size used for output, the default value is 16, but you
+can set higher values (24 or 32) to have a slightly better quality if your
+hardware supports it. Note that 8 bits (unsigned) is also supported.
+
+INTERNAL_VOLUME when set to 1 (on) changes the volume bar behaviour in Winamp
+which permits to adjust the volume before decoding, this is a way to manually
+avoid clipping when it occurs. Note that there will a delay of 1-2s when
+changing volume if you use this option (default value is 0: Off).
+
+TARGET_LUFS will be used only when replay gain is enabled and replay gain
+is available in the opus file. It sets the target loudness in dB from the
+full scale loudness. The R128 standard specifies that what is written in the
+opus file has to be -23 LUFs, But any value can be chosen for playback.
+Most of you will probably want to use -18 LUFs which is the standard most
+other players use including foobar2k and is 5dB louder than default.
+Note: When changing this value, the replaygain info in the Alt+3 dialog box
+will be displayed accordingly.
+Note2: The -23 (default value) corresponds exactly to the behaviour of older
+versions, prior to 0.888.
+
+OGGEXT_HACK can be set to 1 to force via a hack the support for opus files
+with the .ogg extension. Note that it will slightly slow down loading time
+when file extension is .ogg (vorbis or opus). In general performances should
+not be affected except maybe on a very slow drive. Default value is 0: Off.
+Note: on version 0.911 this option has a bug, see changelog for details.
+
+UNIFIED_DIALOG can be set to 1 to enable the unified dialog box for file
+properties (like mp3 aac ogg...) that is available in Winamp 5.5+.
+If you prefer this dialog be sure to enable this option that is disabled
+by default (set to 0).
+
+INSTANT_BR allows you to enable (1) or disable (0) instant bitrate display in
+the winamp windows, default is enabled but you may prefer to see the average
+bitrate that will be displayed when this option is set to zero.
+
+=============================================================================
+== CHANGELOG                                                               ==
+=============================================================================
+== UPDATE 0.911 ==
+
+* FIXED: Now url streams should work with MediaMonkey.
+
+* FIXED: The plugin should be compatible with MediaMonkey again. It will be
+  in my test list from now, even though MediaMonkey 5 will have native opus
+  support.
+
+* NEW: Now the average bitrate can be displayed instead of the instant
+  bitrate, set INSTANT_BR=0 in the [IN_OPUS] section of winamp.ini.
+
+* NEW: An option was added to load files with .ogg extension. The option is
+  not enabled by default because the plugin will have to open all the ogg
+  files to check if they are opus files. Write OGGEXT_HACK=1 in the [IN_OPUS]
+  section of the winamp.ini file if you want to enable it.
+  Note1: In Winamp 5.x, there will be conflicts with the tags when you mix
+  both king of .ogg files, this will lead to tags being not shown for
+  the second type of file you load in the session. All files will play though.
+  Note2: This is not an issue on Winamp 2.x.
+
+* NEW: The playlist entry will display proper format under winamp 5.x, because
+  the winampGetExtendedFileInfo function was implemented.
+
+* NEW: Unified dialog on "Alt+3" can be enabled for Winamp 5.5+ now setting
+  the UNIFIED_DIALOG=1 in the [IN_OPUS] section of the winamp.ini file.
+
+== UPDATE 0.892 ==
+
+This is mostly a bug-fix update. Most significantly I would say, is the fix
+of long durations. Due to integer overflow, in theory the longest file that
+can be played is 2^31 - 1 ms ie ~25 days. I came along a 27day recording,
+and decided to fix the bug. Not that I think many of you will need that, but
+it costs nothing to share right? The other addition is the support of 24b and
+32b output, use the OUT_BITS option. So if you hardware supports 24 or 32b
+output, go for it. However keep in mind tht the EQ shall work only for 16b
+output on Winamp2.x and will work on 16 and 24b output on Winamp5.3+.
+
+* UPDATE: Now using opusfile 0.12 (with modifications)
+
+* NEW: Support for 8, 24 and 32 bits decoding resolution, the default is
+  always 16b. Add the option OUT_BITS=value in the [IN_OPUS] section of
+  your .ini file to use this option.
+
+* FIXED: Now dithering is applied even when resampling is used. Note that
+  It is not very useful as resampling error tends to make bigger artefacts
+  than quantization error. In addition, noise-shaping will be used only for
+  16b:48kHz outpt mode, which is the default since the first version.
+
+* FIXED: Now the user's session winamp.ini file will be read. This concerns
+  Winamp 5.11+, and when the 'paths.ini' file is in winamp's directory.
+
+* FIXED: Now WACUP users should have Unicode filename enabled by default.
+
+* FIXED: Crash in some conditions. Now the plugin is compatible with XMPlay,
+  this is not really useful because of XMPlay's native support for opus.
+  However this can fix problems people experienced in some cases with Winamp.
+
+* FIXED: Unnecessary bloat to the dll removed using gcc's -flto option.
+
+* FIXED: The 24 days 20 h 31 min 24 s and 647 ms maximum duration bug.
+  Actually, for any length greater than that, time will be displayed in
+  hrs:min instead of min:sec format, this applies when jumping in the file
+  with Ctrl+J option as well. Now the new limit for track time is thus 60x
+  greater hence: 4 years 1 month 1 days 7 h 23 min 38 s and 820 ms.
+  Yep u can laugh.
+  Note1: the [h:min] flag will be added at the end of the playlist name.
+  Note2: Visualisation will look wrong in this context.
+
+* FIXED: Possible memory leaks.
+
+* FIXED: Problem in the resampling code that would lead to NULL output in
+  some cases. This should cure random 'not working' when using resampling.
+
+* FIXED: Now the error code will no longer be automatically displayed in
+  the PL for the URL streams, because it does causes performances problems.
+  The error details will still be displayed in the Info dialog on "Alt+3".
+
+== UPDATE 0.888 ==
+
+This is again a recommended update because it fixes a major interference bug
+that might prevent other plugins to load URL streams.
+
+* NEW: Error message will be displayed in the PL when a stream is offline,
+  invalid, has a bad header, etc.
+
+* NEW: Added Shoutcast/Icecast server info in the info dialog Box (Alt+3).
+  In addition proper error will be displayed in the playlist when a radio
+  stream is offline or if it is not an opus stream.
+
+* NEW: Added TARGET_LUFS config variable so that you can decide the target
+  loudness at which to play opus files when RG info is available and RG is
+  enabled.
+
+* NEW: the plugin will also read the in_opus.ini config file in the plugin
+  directory prior to the winamp.ini. If you write options in both files,
+  the ones in winamp.ini will dominate when the concerned option is the same,
+  otherwise all parameters will be read.
+
+* FIXED: now the plugin should no longer risk to interact with other radio
+  streams that he cannot handle. This implies that if the url does not end
+  with .opus the plugin will not try to load the url.
+
+  NOTE: If you have an opus stream that does not end with .opus, append
+  the string ">.opus" or "?.opus" at the end of URL in order to force
+  in_opus to load it.
+  eg: "http://ivyrd.wtju.net:8000/wtju-opus-256.ogg" is actually an opus
+  stream even though it ends with .ogg (like ogg vorbis file)
+  use: http://ivyrd.wtju.net:8000/wtju-opus-256.ogg>.opus to play it.
+  In the rare case a radio streams ends with .opus but is not an opus stream,
+  add "?.mp3" or "?.aac" to avoid in_opus try and open it.
+  eg: http://nebula.shoutca.st:8751/aac320.opus is actually an aac stream,
+  use: http://nebula.shoutca.st:8751/aac320.opus?.aac to play it
+  eg2: http://radioilusion.es:8000/radioilusion.opus actually an ogg stream
+  use: http://radioilusion.es:8000/radioilusion.opus?.ogg to play it
+
+== UPDATE 0.777 ==
+
+CHRISTMAS RELEASE...
+
+* NEW: added an internal volume option, set INTERNAL_VOLUME=1 to enable. In
+  this case the volume slider in winamp will adjust volume before decoding,
+  this has some use if you want to manually avoid clipping while playing.
+  With this option enabled the volume slider goes from -20dB to +0dB.
+
+* NEW: Added resampling option, Now the output can be resampled at any
+  sampling rate eg you can set 44100 Hz for compatibility with some old
+  soundcards. Set the OUT_SAMPLERATE to the desired value in the [IN_OPUS]
+  section of the winamp.ini file. You can also set the quality of resampling
+  from 0 (low quality) to 4 (high quality with) the RESAMPLE_Q option.
+  The default value is 2 as it already gives a good sound quality and higher
+  values are much more CPU heavy. Up-sampling is also supported.
+
+* NEW: PRE_GAIN is now reserved for files and RADIO_GAIN is used
+  for radio streams, the default value for RADIO_GAIN is -3dB because
+  I experienced a lot of clipping with the radio streams I listened to
+  and -3dB is a good value in my opinion. If you want a specific RADIO_GAIN
+  value, set it (in dB) in the winamp.ini file.
+
+* NEW: added a value to USE_REPLAY_GAIN, set it to 4 to use the raw opus
+  signal without the header gain. I do not recommend this option because the
+  Header gain should always be applied, this value is here in case it is
+  needed. eg: opus files with a completely broken Header gain.
+
+* FIXED: invalid behaviour in reading .ini file in some conditions.
+
+* FIXED: Now the PRE_GAIN is always applied, even when replay gain is
+  disabled. this is useful if you have clipping problems and do not want
+  to use replay gain, note that RADIO_GAIN is always applied when playing
+  Radio streams.
+
+* FIXED: Now the normal EQ (Winamp 4Front EQ) works on Winamp5.x with this
+  plugin. It was a strange bug related to the Info display.
+
+* FIXED: No more flickering of the menu-buttons at the bottom of the winamp
+  playlist when playing opus file. Hopefully it should also fix the screen
+  tearing some people experienced with previous versions.
+
+== UPDATE 0.666 ==
+
+This update is quite important as it enables UNICODE FILE NAME SUPPORT.
+if you use winamp 5.3+ on Windows NT+. Normally you have nothing to do
+as the default behaviour is to auto detect the proper conditions to enable
+UNICODE filenames support.
+
+This is also the "stable" release including RADIO STREAM SUPPORT.
+Most of the work was to remove dependency to OpenSSL which is a pain
+to build on windows especially on Win95. In addition OpenSSL is bloated
+and unnecessary for my case as I never encountered HTTPS radio streams.
+
+* NEW: Now you can enable support for UNICODE file names by adding the
+  option UNICODE_FILE=1 in the [IN_OPUS] section of winamp.ini. You need
+  Winamp 5.3 or greater AND windows NT/2000/XP/Vista/7/8/10. This option
+  will not do anything under Windows 9x and plugin will fail to load
+  if you are using a Winamp version smaller than 5.3 and enabled this option.
+  set UNICODE_FILE=2 (default) to enable auto detection. Note that this
+  detection is based on the "WHATSNEW.TXT" file in the Winamp directory.
+  if the plugin cannot find the specified file it will assume no Unicode
+  filenames. Finally set it to 0 if your system cannot handle UNICODE.
+
+* NEW: Value added to the USE_REPLAY_GAIN option. Set it to 3 (Auto mode)
+  and it will automatically pick the Album gain except when winamp is in
+  Shuffle mode where it will chose the Track gain. This is very sensible
+  in my opinion as the purpose of replay gain is to avoid volume changes
+  between tracks. In this case if you listen to a full album, the volume
+  between tracks will respect the original Album purpose and if you are
+  randomly listening to tracks the individual track gain will be applied.
+
+* FIXED: Now the plugin does not rely on Windows Socket 2 but is instead
+  compatible with Windows Socket 1 that is included in Win95 by default.
+
+* FIXED: Now the seek-bar is disabled in Radio mode.
+
+* FIXED: Small change to the Info dialog box in the case of Radio streams.
+
+== UPDATE 0.610 (open beta of beta) ==
+
+* NEW: Added radio support. for the moment only http streams are supported.
+  I release this version because I am not sure when I will have time to work
+  more on the plugin (Hopefully soon). So keep an eye for Release.
+  Of course any feedback will be welcome on this beta.
+
+* NOTE: I could not test it at all on Win 9x as I am far from home.
+  Theoretically it should work
+
+== UPDATE 0.555 ==
+
+* UPDATED: Now we use libopus 1.3.1 and libopusfile 0.11
+
+* NEW: Added the option to disable dithering. Some people might prefer the
+  the way it sounds and it does speed up decoding speed by 30-40%. Generally
+  I would recommend to keep dithering enabled which was the behaviour of older
+  releases. As usual do not specify a value in the .ini file if you want the
+  default behaviour.
+
+* FIXED: MinGW was generating improper code for windows 95. With some options
+  checked, the plugin is now 95 compatible (Tested with Windows 95 OSR 2).
+
+* FIXED: By default libopus does a lot of memory allocation on the stack,
+  this is very prone to crash, the correct flag was passed to libopus-1.3.1
+  to avoid excessive stack allocation. No performance decrease was observed.
+
+* FIXED: The UTF-8 to ANSI conversion table was broken, now it seems correct.
+
+* Small modification to the tag dialog to include more tags that I find
+  useful. Labels and accelerators were added for all fields, press Alt+T
+  to select Title, Alt+A for Artist, Alt+E for Description etc...
+
+* NEW: Unicode is now supported under Windows NT OSes serie. Under Win98 you
+  will still be limited to ANSI. An option was added to select the desired
+  mode: TAGS_DISPLAY_MODE. Set it to 0 to dump the raw utf8 string in the
+  dialog, hence the character 'é' will be displayed as 'Ã©', not very nice.
+  Set it to 1 to force the UTF8 -> ANSI conversion and set it to 2 to force
+  the Full Unicode support (UTF-8 -> UTF16). this requires NT. by default the
+  value is 3 meaning the program will automatically use full Unicode support
+  on NT and convert to ANSI on Win98.
+  - NOTE: On NT4 you will not have all Unicode but only USC-2 characters.
+          Date, Tracks numbers and URL are always assumed to be ASCII.
+
+* NEW: You can now select the font you Want, just add the line in winamp.ini
+  in the section [IN_OPUS]:
+  TAGS_FONT=10 Times New Roman
+  the first is the size of the font, default is "8 MS Sans serif" you can
+  specify a size (12 is the practical max) followed by the font name.
+  if the size is 0, the plugin resets to default (8 MS Sans serif).
+
+== UPDATE 0.444 ==
+
+* FIXED: A few bugs in reading tags.
+
+* NEW: ReplayGain supported, it uses the standard R128 tag, in 256th of dB
+there is no configuration box, if you want to enable replay gain, you have
+to write it directly in the Winamp.ini file in winamp's directory.
+If no parameters are written, no replay gain of any kind will be applied.
+The plugin will not write anything into winamp.ini, you have to write those
+options yourself and restart Winamp or go to the config dialog box of
+in_opus, this will read the configuration, you will need to stop and start
+playback again though.
+
+Open "winamp.ini" with notepad and paste at the end the following 4 lines:
+
+[IN_OPUS]
+USE_REPLAY_GAIN=1
+PRE_GAIN=0.0
+THREAD_PRIORITY=1
+
+to use Album gain, set USE_REPLAY_GAIN=1 and set it to 2 for track gain,
+or 0 to disable replay gain.
+
+the PRE_GAIN value is a preamplification factor in dB that is applied before
+the gain. you should consider putting a negative value if you experience
+clipping problems. A common value is -6dB (ultra safe, very rare clipping)
+0 is usually OK because the gain is almost always negative anyway.
+You should use the same parameters with the others plugins.
+If you are reading this, it means you know what you are doing anyway.
+
+You can set the decode priority thread (default is 1, above normal) other
+values are: -2: Lowest, -1 Below Normal; 0 Normal; 1 Above Normal; 2 Higher
+You can also try -15: Idle or +15: Real Time (not recommended)
+
+Note: the tags name are R128_ALBUM_GAIN and R128_TRACK_GAIN,
+      the value should be an ASCII string representing in decimal form
+      a signed 16-interer value in 256th of dB.
+
+      I found foobar2k directly modify the opus specific header gain meaning
+      that it will adjust the gain, setting the Album tag value to 0 and the
+      track with the correct relative value.
+      This is quite strange but why not...
+
+== 0.333 initial release ==
+
+=============================================================================
+== !! EXPERTS ONLY !!                                                      ==
+=============================================================================
+If you want you can change the default in_opus options, you can edit the dll
+file with a hex editor. Search for the string:
+"Out=48000, 2, 16 Uni=2, Gain=0, +0.0000, -3.0000, -23, 0, 3, 1, 0, 0, 1, 0 "
+"Times New Roman or other font with a super long name"
+For in_opus.dll v0.911 (see old txt for previous versions).
+
+The 1st value is the output samplerate (default 48000) in Hz.
+
+The 2nd value is the Resampling quality from 0 to 4 (default 2).
+
+The 3rd value sets the output sample resolution (8, 16, 24 or 32 bits/sample)
+
+The 4th value sets Unicode filename support 0: Off 1: On 2: Auto
+
+The 5th value (default 0) means 0: None, 1: Album, 2: Track, 3: Auto
+
+The 6th value (default +0.0) is the preamp gain for FILES in dB.
+
+The 7th value (default -3.0) is the preamp gain for RADIO in dB.
+
+The 8th value is the target replay LUFS.
+
+The 9th value (default 0) is to enable/disable internal volume.
+
+The 10th value is the tag display mode (default 3) 0: raw utf8-dump,
+1: force ansi conversion, 2 force UTF16 conversion (NT only) 3: Auto.
+
+The 11th value is 1 or 0 to enable or disable dithering (default 1).
+
+The 12th value is 1 or 0 to enable or disable .ogg file hack (default 0).
+
+The 13th value is 1 or 0 to enable or disable unified tags dialog box.
+
+The 14th value is 1 or 0 to enable or disable instant bitrate display.
+
+The final value (invalid here) is the font size and the font name.
+
+Do not forget to NULL terminate the string at the appropriate point,
+just after the font name.
+
+== END OF FILE ==
