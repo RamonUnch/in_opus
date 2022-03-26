@@ -23,7 +23,7 @@ int isourfile(char *fn);
 /***************************************
  *  SHARED HELPERS                     *
  ***************************************/
-int has_opus_ext(const char *p)
+static int has_opus_ext(const char *p)
 {
     p+=strlen(p); p-=4;
     if(!_strnicmp(p, ".opu", 4) || !_strnicmp(--p, ".opus", 5)) {
@@ -32,7 +32,7 @@ int has_opus_ext(const char *p)
         return 0;
     }
 }
-int has_opus_extW(const wchar_t *p)
+static int has_opus_extW(const wchar_t *p)
 {
     p+=wcslen(p); p = &p[-4];
     if(!_wcsnicmp(p, L".opu", 4) || !_wcsnicmp(--p, L".opus", 5)) {
@@ -251,22 +251,22 @@ static BOOL InitInfoboxInfo(HWND hwnd, const char *file)
         _tmp = op_open_file(UNICODE_FILE? fnUTF8: file, &err);
     }
 
-    if (!_tmp){
-        if(file_is_url && err == OP_ENOTFORMAT)
+    if (!_tmp) {
+        if (file_is_url && err == OP_ENOTFORMAT) {
             sprintf(buffer,"Cannot open file: \n\n%s\n\n"
                    "Error No. -132: Not an opus stream\n"
                    "Try renaming the stream adding ?.mp3 or ?.ogg at the end."
                    , UNICODE_FILE ? fnUTF8: file);
 
-        else
+        } else {
             sprintf(buffer, "Cannot open file: \n\n%s\n\n Error No. %d: %s"
                    , UNICODE_FILE? fnUTF8: file, err, TranslateOpusErr(err));
+        }
+        MessageBox(hwnd, buffer, "OPUS Stream Error", MB_OK);
 
-        MessageBox(hwnd, buffer, "OPUS Stream Error", MB_OK); 
-        
         goto FAIL;
     }
-    if(fnUTF8){ free(fnUTF8); fnUTF8=NULL; }
+    if(fnUTF8) { free(fnUTF8); fnUTF8=NULL; }
 
 
     if(!file_is_url){
@@ -418,20 +418,19 @@ void DoInfoBox(HINSTANCE inst, HWND hwnd, const char *filename)
 int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest, size_t destlen)
 {
     const char *z = NULL;
-    int err;
+    int err=0;
     const OpusTags *_tags=NULL;
     OggOpusFile *_of;
-    
-//    MessageBox(NULL, fn, data, MB_OK);
+
 
     if (!_stricmp(data, "type")) {
         dest[0] = '0'; // audio format
         return 1;
-    
+
     } else if (!_stricmp(data, "family")) {
 //        strcpy(dest, "Ogg/Opus Audio File");
         return 0;
-    
+
     } else if (!_stricmp(data, "length")) {
         return 0;
 
@@ -446,8 +445,8 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
             // send error message...
             char *p;
             if((p = strrchr(fn, '\\'))) p++; else p = (char *)fn;
-            
-            sprintf(dest, "[in_opus err %d %s] %s" 
+
+            sprintf(dest, "[in_opus err %d %s] %s"
                 , err, TranslateOpusErr(err), p);
             return 1;
         } else {
@@ -456,13 +455,13 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
     }
     // if file opened correctly
     if(!_tags) goto fail;
-    
+
     // FROM HERE TAGS HAS TO BE OK!
-    
+
     if (!_stricmp(data, "bitrate")) {
         sprintf(dest, "%1.f", (float)op_bitrate(_of, -1));
         goto finish;
-        
+
     } else if (!_stricmp(data, "formatinformation")) {
         sprintf(dest,
             "Size: %I64d bites\n"
@@ -482,13 +481,13 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
         );
 
         goto finish;
-        
+
     } else if (!_stricmp(data, "replaygain_track_gain")) {
         int tgain=0;
         opus_tags_get_track_gain (_tags, &tgain);
         sprintf(dest, "%.2f", (float)tgain/256.f);
         goto finish;
-        
+
     } else if (!_stricmp(data, "replaygain_album_gain")) {
         int again=0;
         opus_tags_get_album_gain (_tags, &again);
@@ -513,7 +512,7 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
     } else {
         z = opus_tags_query(_tags, data, 0);
     }
-    if(z){
+    if (z) {
        dest[0] = '\0';
        strncat(dest, z, destlen-1);
        goto finish;
@@ -521,9 +520,8 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
     fail:
     op_free(_of);
     return 0;
-    
-    finish: // sucess!
 
+    finish: // sucess!
     op_free(_of);
     return 1;
 }
@@ -532,9 +530,9 @@ __declspec(dllexport) int winampGetExtendedFileInfo(const char *fn, const char *
 {
     char *dest_utf8, *dest_ansi;
     int ret;
-    
+
     dest_utf8=calloc(destlen, sizeof(char)); if(!dest_utf8) return 0;
-    
+
     if(winampGetExtendedFileInfo_utf8(fn, data, dest_utf8, destlen)) {
         dest_ansi=utf8_to_ansi(dest_utf8); if(!dest_ansi) return 0;
         dest[0] = '\0';
@@ -555,7 +553,7 @@ __declspec(dllexport) int winampGetExtendedFileInfoW(const wchar_t *fn, const ch
     int ret;
     fnUTF8 = utf16_to_utf8(fn);                if(!fnUTF8)    return 0;
     dest_utf8 = calloc(destlen, sizeof(char)); if(!dest_utf8) return 0;
-   
+
     if(winampGetExtendedFileInfo_utf8(fnUTF8, data, dest_utf8, destlen)) {
         dest_w = utf8_to_utf16(dest_utf8); if(!dest_w) return 0;
         dest[0] = '\0';
@@ -565,9 +563,9 @@ __declspec(dllexport) int winampGetExtendedFileInfoW(const wchar_t *fn, const ch
     } else {
         ret = 0;
     }
-    free(dest_utf8); 
+    free(dest_utf8);
     free(fnUTF8);
-    
+
     return ret;
 }
 __declspec(dllexport) int winampUseUnifiedFileInfoDlg(const wchar_t *fn)
@@ -578,27 +576,27 @@ __declspec(dllexport) int winampUseUnifiedFileInfoDlg(const wchar_t *fn)
 
     if(UNIFIED_DIALOG){
         p += wcslen(p);
-        
+
         if (!_wcsnicmp(fn,L"http://", 7)){
             // if URL;
 //            MessageBox(NULL,"URL return 0","winampUseUnifiedFileInfoDlg",MB_OK);
-            return 0; 
-            
-        } else if(has_opus_extW(fn)) { 
+            return 0;
+
+        } else if(has_opus_extW(fn)) {
             // extension is .opus or .opu
 //            MessageBox(NULL,"OPUS file and return 1","winampUseUnifiedFileInfoDlg",MB_OK);
-            return 1; 
-        
+            return 1;
+
         } else if((p[-1]=='g'&&p[-2]=='g'&&p[-3]=='o'&&p[-4]=='.')) {
             // extenson is .ogg
             char *fnUTF8;
             OggOpusFile *_tmp;
-            
+
             fnUTF8 = utf16_to_utf8(fn); if(!fnUTF8) return 0;
-            _tmp = op_test_file(fnUTF8, &err); 
+            _tmp = op_test_file(fnUTF8, &err);
             free(fnUTF8);
             if(_tmp) op_free(_tmp);
-            
+
             if(err == 0){
 //                MessageBox(NULL,"OGG file and return 1","winampUseUnifiedFileInfoDlg",MB_OK);
                 return 1;
@@ -607,7 +605,7 @@ __declspec(dllexport) int winampUseUnifiedFileInfoDlg(const wchar_t *fn)
                 return 0;
             }
         }
-        
+
     } else {
         return 0;
     }

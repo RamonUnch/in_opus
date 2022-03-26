@@ -51,27 +51,28 @@ HANDLE thread_handle=INVALID_HANDLE_VALUE; // the handle to the decode thread
 
 volatile char killDecodeThread=0;    // the kill switch for the decode thread
 
-OggOpusFile *_of=NULL;
-HFONT TAGS_FONT=NULL;
-int THREAD_PRIORITY;
-opus_int32 PRE_GAIN;
-opus_int32 RADIO_GAIN;
-int OP_CURRENT_GAIN;
-int SAMPLERATE;
-char RESAMPLE_Q;
-char BPS;
 char TAGS_DISPLAY_MODE, isNT; // 0: raw, 1: ANSI, 2: Unicode, 3: AUTO
 char UNICODE_FILE;
-char INTERNAL_VOLUME;
-char VIS_BROKEN; // Winamp version < 5.11
-char HOURS_MODE_ON; // to fix the 24days 20h 31min 24s and 647ms bug
 char TARGET_LUFS;
 char USE_REPLAY_GAIN=0; // 0 : no, 1: Album, 2: Track.
-char USE_DITHERING;
-char RADIO;
-char OGGEXT_HACK;
 char UNIFIED_DIALOG;
-char INSTANT_BR;
+HFONT TAGS_FONT=NULL;
+
+static OggOpusFile *_of=NULL;
+static int THREAD_PRIORITY;
+static opus_int32 PRE_GAIN;
+static opus_int32 RADIO_GAIN;
+static int OP_CURRENT_GAIN;
+static int SAMPLERATE;
+static char RESAMPLE_Q;
+static char BPS;
+static char INTERNAL_VOLUME;
+static char VIS_BROKEN; // Winamp version < 5.11
+static char HOURS_MODE_ON; // to fix the 24days 20h 31min 24s and 647ms bug
+static char USE_DITHERING;
+static char RADIO;
+static char OGGEXT_HACK;
+static char INSTANT_BR;
 
 /////////////////////////////////////////////////////////////////////////////
 // This function is mendatory when linking with MinGW to be able to load dll
@@ -224,7 +225,7 @@ static void readconfig(char *ini_name, char *rez, char *font_str, int *font_heig
     }
 }
 /////////////////////////////////////////////////////////////////////////////
-// 
+//
 static HFONT applyglobalfont(char *font_str, int font_height)
 {
     HDC hdc;
@@ -306,7 +307,7 @@ void init()
 
     VIS_BROKEN=1;
     winamp_version = SendMessage(mod.hMainWindow, WM_WA_IPC, 0, IPC_GETVERSION);
-    
+
     if(winamp_version >= 0x5011){
         if(winamp_version >= 0x5012) VIS_BROKEN=0; // Winamp 5.12 allows 24/32b visualisation.
         // this gets the string of the full ini file path
@@ -571,7 +572,7 @@ int getlength()
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Returns current output position, in ms. you could just use 
+// Returns current output position, in ms. you could just use
 // return mod.outMod->GetOutputTime(), but the dsp plug-ins that do tempo
 // changing tend to make that wrong.
 int getoutputtime()
@@ -662,11 +663,11 @@ void getfileinfo(char *filename, char *title, int *length_in_ms)
             char *p=lastfn+strlen(lastfn);
             while (p >= lastfn && *p != '\\') p--; p++;
 
-            if(err && !is_lfn_url && !UNICODE_FILE) 
+            if(err && !is_lfn_url && !UNICODE_FILE)
                 sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), p);
-            else if(hours_mode_on) 
+            else if(hours_mode_on)
                 sprintf(title,"%s [h:min]", p);
-            else 
+            else
                 strcpy(title, p);
         }
         if(_tmp) op_free(_tmp);
@@ -680,11 +681,11 @@ void getfileinfo(char *filename, char *title, int *length_in_ms)
             const char *p=filename+strlen(filename);
             while (p >= filename && *p != '\\') p--; p++;
 
-            if(err && !is_fn_url && !UNICODE_FILE) 
+            if(err && !is_fn_url && !UNICODE_FILE)
                 sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), p);
-            else if(hours_mode_on) 
+            else if(hours_mode_on)
                 sprintf(title,"%s [h:min]", p);
-            else 
+            else
                 strcpy(title, p);
         }
         if(_tmp) op_free(_tmp);
@@ -758,7 +759,7 @@ static inline void do_vis(char *__restrict data, char *__restrict vis_buffer
     int position;
 
     position =  HOURS_MODE_ON? pos/BIG_LENGTH_MULT: pos;
-    
+
     if(!vis_buffer) goto DEFAULT; // If we did not allocate buffer it means
                                  // that ther is no deed to reduce BPS.
     switch(resolution) {
@@ -818,9 +819,9 @@ static inline int get_576_samples(char *__restrict buf, float *__restrict Ibuff)
 /////////////////////////////////////////////////////////////////////////////
 // Alternate version that down sample to SAMPLERATE.
 static inline int get_samples44(
-    char *__restrict buf, 
-    float *__restrict Ibuff, float *__restrict Obuff, 
-    SpeexResamplerState *StResampler, 
+    char *__restrict buf,
+    float *__restrict Ibuff, float *__restrict Obuff,
+    SpeexResamplerState *StResampler,
     spx_uint32_t max_out_samples)
 {
     spx_uint32_t l, lout;
@@ -870,9 +871,9 @@ DWORD WINAPI DecodeThread(LPVOID b)
         Ibuff= malloc(   (DECODE_BUFF_SIZE)*sizeof(float));
     }
     if(VIS_BROKEN && (BPS==24 || BPS==32)) vis_buffer=malloc( (DECODE_BUFF_SIZE*SAMPLERATE)/SR ); //always 8b
-    
+
     if(!INSTANT_BR) avbitrate = op_bitrate(_of, -1)/1000;
-   
+
     mod.SetInfo(avbitrate, SAMPLERATE/1000, NCH, 1);
 
     while (!killDecodeThread) {
@@ -894,7 +895,7 @@ DWORD WINAPI DecodeThread(LPVOID b)
                                         // to be called on a regular basis.
             if (!mod.outMod->IsPlaying()) {
                 // we're done playing, so tell Winamp and quit the thread.
-                PostMessage(mod.hMainWindow,WM_WA_MPEG_EOF,0,0);
+                PostMessage(mod.hMainWindow, WM_WA_MPEG_EOF, 0, 0);
                 goto QUIT;    // quit thread
             }
             Sleep(10);        // give a little CPU time back to the system.
@@ -906,31 +907,31 @@ DWORD WINAPI DecodeThread(LPVOID b)
             // factor of two (for tempo adjustment).
         {
             if(VERBOSE >= 3) MessageBox(NULL,"Going to get samples", "in_opus", MB_OK);
-            if(StResampler){
-                l=get_samples44(sample_buffer, Ibuff, Obuff, StResampler, max_out_length/(NCH*(BPS/8)));
+            if (StResampler) {
+                l = get_samples44(sample_buffer, Ibuff, Obuff, StResampler, max_out_length/(NCH*(BPS/8)));
             } else {
-                l=get_576_samples(sample_buffer, Ibuff);
+                l = get_576_samples(sample_buffer, Ibuff);
             }
 
-            if (!l){ // no samples means we're at eof
-                if(VERBOSE >= 2) MessageBox(NULL,"No samples found, we are at OEF", "in_opus", MB_OK);
-                done=1;
+            if (!l) { // no samples means we're at eof
+                if (VERBOSE >= 2) MessageBox(NULL,"No samples found, we are at OEF", "in_opus", MB_OK);
+                done = 1;
             } else {    // we got samples!
-                if(VERBOSE >= 3) MessageBox(NULL,"We got samples", "in_opus", MB_OK);
-                
+                if (VERBOSE >= 3) MessageBox(NULL,"We got samples", "in_opus", MB_OK);
+
                 do_vis(sample_buffer, vis_buffer, decode_pos_ms, max_out_length/(BPS/8), BPS);
-                
+
                 // adjust decode position variable
                 decode_pos_ms+=(l*500)/(SAMPLERATE*(BPS/8));
 
                 // if we have a DSP plug-in, then call it on our samples
-                if (mod.dsp_isactive()){
+                if (mod.dsp_isactive()) {
 
                     l=mod.dsp_dosamples(  (short *)sample_buffer     // dsp_dosamples
                                         , l/(NCH*(BPS/8)), BPS, NCH
                                         , SAMPLERATE) *(NCH*(BPS/8));
                 }
-                if(VERBOSE >= 3) MessageBox(NULL,"going to write pcm data to the output system"
+                if (VERBOSE >= 3) MessageBox(NULL,"going to write pcm data to the output system"
                                            , "in_opus", MB_OK);
 
                 // write the pcm data to the output system
@@ -955,11 +956,11 @@ DWORD WINAPI DecodeThread(LPVOID b)
     } // END of While !Kill decode thread
 
     QUIT:
-    if (StResampler){speex_resampler_destroy(StResampler); StResampler=NULL;}
-    if(Obuff) free(Obuff);
-    if(Ibuff) free(Ibuff);
-    if(sample_buffer) free(sample_buffer);
-    if(vis_buffer) free(vis_buffer);
+    if (StResampler) { speex_resampler_destroy(StResampler); StResampler=NULL; }
+    if (Obuff) free(Obuff);
+    if (Ibuff) free(Ibuff);
+    if (sample_buffer) free(sample_buffer);
+    if (vis_buffer) free(vis_buffer);
 
     return 0;
 }

@@ -17,6 +17,23 @@
 #include <limits.h>
 #include <string.h>
 
+int op_strncasecmp(const char *_a,const char *_b,int _n)
+{
+  int i;
+  for(i=0;i<_n;i++){
+    int a;
+    int b;
+    int d;
+    a=_a[i];
+    b=_b[i];
+    if(a>='a'&&a<='z')a-='a'-'A';
+    if(b>='a'&&b<='z')b-='a'-'A';
+    d=a-b;
+    if(d)return d;
+  }
+  return 0;
+}
+
 static unsigned op_parse_uint16le(const unsigned char *_data){
   return _data[0]|_data[1]<<8;
 }

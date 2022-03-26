@@ -177,7 +177,7 @@ static inline float compute_func(float x, const struct FuncDef *func)
    /* Just to make sure we don't have rounding problems */
    interp[1] = 1.f-interp[3]-interp[2]-interp[0];
 
-   return   interp[0]*func->table[ind] + interp[1]*func->table[ind+1] 
+   return   interp[0]*func->table[ind] + interp[1]*func->table[ind+1]
           + interp[2]*func->table[ind+2] + interp[3]*func->table[ind+3];
 }
 
@@ -230,7 +230,7 @@ static int resampler_basic_direct_single(SpeexResamplerState *st, spx_uint32_t c
    {
       sinct = &sinc_table[samp_frac_num*N];
       iptr  = &in[last_sample];
-      
+
       #ifdef __SSE1
       if(HAVE_SSE){
          sum = inner_product_single(sinct, iptr, N);
@@ -244,7 +244,7 @@ static int resampler_basic_direct_single(SpeexResamplerState *st, spx_uint32_t c
       out[out_stride * out_sample++] = sum;
       last_sample += int_advance;
       samp_frac_num += frac_advance;
-      
+
       if (samp_frac_num >= den_rate)
       {
          samp_frac_num -= den_rate;
@@ -276,7 +276,7 @@ static int update_filter(SpeexResamplerState *st)
    spx_uint32_t old_alloc_size = st->mem_alloc_size;
    spx_uint32_t min_sinc_table_length;
    spx_uint32_t min_alloc_size;
-   
+
    spx_int32_t i, j;
 
    st->int_advance = st->num_rate/st->den_rate;
@@ -306,12 +306,12 @@ static int update_filter(SpeexResamplerState *st)
       /* up-sampling */
       st->cutoff = quality_map[st->quality].upsample_bandwidth;
    }
-   
+
    if (INT_MAX/sizeof(spx_word16_t)/st->den_rate < st->filt_len)
       goto fail;
 
    min_sinc_table_length = st->filt_len*st->den_rate;
-   
+
    if (st->sinc_table_length < min_sinc_table_length)
    {
       spx_word16_t *sinc_table = speex_realloc(st->sinc_table,min_sinc_table_length*sizeof(spx_word16_t));
@@ -326,11 +326,11 @@ static int update_filter(SpeexResamplerState *st)
           st->sinc_table[i*st->filt_len+j] = sinc(st->cutoff,((j-(spx_int32_t)st->filt_len/2+1)
                                                 - ((float)i)/st->den_rate), st->filt_len
                                                 , quality_map[st->quality].window_func);
- 
+
     st->resampler_ptr = resampler_basic_direct_single;
 
    /*fprintf (stderr, "resampler uses direct sinc table and normalised cutoff %f\n", cutoff);*/
-   
+
    /* Here's the place where we update the filter memory to take into account
       the change in filter length. It's probably the messiest part of the code
       due to handling of lots of corner cases. */
@@ -420,7 +420,7 @@ fail:
       the last of these samples. */
    st->filt_len = old_length;
 //   MessageBoxA(NULL, "RESAMPLER_ERR_ALLOC_FAILED", "in_OPUS_resampler", 0);
-   
+
    return RESAMPLER_ERR_ALLOC_FAILED;
 
 } // END update_filter(SpeexResamplerState *st)
@@ -447,10 +447,10 @@ SpeexResamplerState *speex_resampler_init_frac(spx_uint32_t nb_channels
    #endif
 //   if(HAVE_SSE)MessageBoxA(NULL, "SSE", "We have SSE", 0);
 
-   if (nb_channels == 0 
-       || ratio_num == 0 
-       || ratio_den == 0 
-       || quality > SPEEX_RESAMPLER_QUALITY_MAX  
+   if (nb_channels == 0
+       || ratio_num == 0
+       || ratio_den == 0
+       || quality > SPEEX_RESAMPLER_QUALITY_MAX
        || quality < SPEEX_RESAMPLER_QUALITY_MIN)
    {
       if (err)
@@ -526,7 +526,7 @@ void speex_resampler_destroy(SpeexResamplerState *st)
 }
 
 static int speex_resampler_process_native(
-    SpeexResamplerState *__restrict st, spx_uint32_t channel_index, 
+    SpeexResamplerState *__restrict st, spx_uint32_t channel_index,
     spx_uint32_t *in_len,
     spx_word16_t *out, spx_uint32_t *out_len)
 {
@@ -575,8 +575,8 @@ static int speex_resampler_magic(SpeexResamplerState *st, spx_uint32_t channel_i
 }
 
 static inline int speex_resampler_process_float(
-    SpeexResamplerState *__restrict st, spx_uint32_t channel_index, 
-    const float *__restrict in, spx_uint32_t *in_len, 
+    SpeexResamplerState *__restrict st, spx_uint32_t channel_index,
+    const float *__restrict in, spx_uint32_t *in_len,
     float *out, spx_uint32_t *out_len)
 {
    spx_uint32_t j;
@@ -586,7 +586,7 @@ static inline int speex_resampler_process_float(
    const int filt_offs = st->filt_len - 1;
    const spx_uint32_t xlen = st->mem_alloc_size - filt_offs;
    const int istride = st->in_stride;
-   
+
    if(st->resampler_ptr == NULL) return RESAMPLER_ERR_ALLOC_FAILED;
 
    if (st->magic_samples[channel_index])
@@ -613,7 +613,7 @@ static inline int speex_resampler_process_float(
    }
    *in_len -= ilen;
    *out_len -= olen;
-   
+
    return RESAMPLER_ERR_SUCCESS;
 }
 
@@ -626,14 +626,14 @@ int speex_resampler_process_interleaved_float(
    int istride_save, ostride_save;
    spx_uint32_t bak_out_len = *out_len;
    spx_uint32_t bak_in_len = *in_len;
-   
+
    istride_save = st->in_stride;
    ostride_save = st->out_stride;
    st->in_stride = st->out_stride = st->nb_channels;
-   
+
    if (in == NULL) return RESAMPLER_ERR_INVALID_ARG;
    if(st->resampler_ptr == NULL) return RESAMPLER_ERR_ALLOC_FAILED;
-   
+
    for (i=0 ; i < st->nb_channels; i++)
    {
       *out_len = bak_out_len;
@@ -880,8 +880,8 @@ void float2int_dither(void *__restrict _dst, const float *__restrict _src ,int _
     mute=MIN(mute, 16384);
 }
 
-inline double floorz(double n)
-{
-    long long i=(long long)n;
-    return i>=0? i : i-1;
-}
+//inline double floorz(double n)
+//{
+//    long long i=(long long)n;
+//    return i>=0? i : i-1;
+//}

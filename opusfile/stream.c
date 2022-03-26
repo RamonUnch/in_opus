@@ -39,14 +39,14 @@ typedef struct OpusMemStream OpusMemStream;
 #define OP_MEM_SIZE_MAX (~(size_t)0>>1)
 #define OP_MEM_DIFF_MAX ((ptrdiff_t)OP_MEM_SIZE_MAX)
 
-/* The context information needed to read from a block of memory 
+/* The context information needed to read from a block of memory
  * as if it were a file.
  */
 struct OpusMemStream{
   /*The block of memory to read from.*/
   const unsigned char *data;
   /* The total size of the block.
-   * This must be at most OP_MEM_SIZE_MAX to prevent 
+   * This must be at most OP_MEM_SIZE_MAX to prevent
    * signed overflow while seeking.
    */
   ptrdiff_t            size;
@@ -144,24 +144,24 @@ static const OpusFileCallbacks OP_FILE_CALLBACKS={
 
 void *op_fopen(OpusFileCallbacks *_cb,const char *_path,const char *_mode)
 {
-  FILE *fp;
+  FILE *fp=NULL;
   if(!_path || !_mode || *_path == '\0' || *_mode == '\0') return NULL;
 
   fp=fopen(_path,_mode); // 1st try to open ANSI
-  
+
   if(!fp){ // If it does not work then try unicode.
     wchar_t *wpath;
     wchar_t *wmode;
-    
+
     wpath=utf8_to_utf16(_path); if(!wpath) errno=EINVAL;
     wmode=utf8_to_utf16(_mode); if(!wmode) errno=ENOENT;
-   
+
     HINSTANCE hMsvcrtDll=NULL;
-      
+
     hMsvcrtDll = GetModuleHandle("MSVCRT.DLL");
-    if(hMsvcrtDll) my_wfopen = GetProcAddress(hMsvcrtDll, "_wfopen" );
+    if(hMsvcrtDll) my_wfopen = (void *)GetProcAddress(hMsvcrtDll, "_wfopen" );
     if(my_wfopen) fp=(FILE *)my_wfopen(wpath, wmode);
-    
+
     if(wmode) _ogg_free(wmode);
     if(wpath) _ogg_free(wpath);
   }
@@ -188,17 +188,17 @@ void *op_freopen(OpusFileCallbacks *_cb,const char *_path,const char *_mode, voi
   if(!fp){ // If it does not work then try unicode.
       wchar_t *wpath;
       wchar_t *wmode;
-    
+
       wpath=utf8_to_utf16(_path); if(!wpath) errno=EINVAL;
       wmode=utf8_to_utf16(_mode); if(!wmode) errno=EINVAL;
-    
- 
+
+
       HINSTANCE hMsvcrtDll=NULL;
-      
+
       hMsvcrtDll = GetModuleHandle("MSVCRT.DLL");
-      if(hMsvcrtDll)   my_wfreopen  = GetProcAddress(hMsvcrtDll, "_wfreopen");
+      if(hMsvcrtDll)   my_wfreopen  = (void *)GetProcAddress(hMsvcrtDll, "_wfreopen");
       if(my_wfreopen)  fp=(FILE *)my_wfreopen(wpath, wmode, (FILE *)_stream);
-      
+
       if(wmode) _ogg_free(wmode);
       if(wpath) _ogg_free(wpath);
   }

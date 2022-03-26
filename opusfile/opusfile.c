@@ -1665,14 +1665,14 @@ static OggOpusFile *op_test_close_on_failure(void *_stream,
  const OpusFileCallbacks *_cb,int *_error)
 {
   OggOpusFile *of;
-  
+
   if(OP_UNLIKELY(_stream==NULL)){
     if(_error!=NULL)*_error=OP_EFAULT;
     return NULL;
   }
   of=op_test_callbacks(_stream,_cb,NULL,0,_error);
   if(OP_UNLIKELY(of==NULL))(*_cb->close)(_stream);
-  
+
   return of;
 }
 
@@ -3156,9 +3156,9 @@ int op_read_float_stereo(OggOpusFile *_of,float *_pcm,int _buf_size){
 /*The dithering code here is adapted from opusdec, part of opus-tools.
   It was originally written by Greg Maxwell.*/
 
-static opus_uint32 op_rand(opus_uint32 _seed){
+/*static opus_uint32 op_rand(opus_uint32 _seed) {
   return _seed*96314165+907633515&0xFFFFFFFFU;
-}
+}*/
 #define RANDG(seed)  (1103515245 * (seed) + 12345)
 
 /*This implements 16-bit quantization with full triangular dither and IIR noise
@@ -3210,13 +3210,6 @@ static int op_float2short_filter(OggOpusFile *_of
   dst=(opus_int16 *)_dst;
   if(OP_UNLIKELY(_nsamples*_nchannels>_dst_sz))_nsamples=_dst_sz/_nchannels;
 
-//# if defined(OP_SOFT_CLIP)
-//  if(_of->state_channel_count!=_nchannels){
-//    for(ci=0;ci<_nchannels;ci++)_of->clip_state[ci]=0;
-//  }
-//  opus_pcm_soft_clip(_src,_nsamples,_nchannels,_of->clip_state);
-//# endif
-  
   if(_of->dither_disabled){
       for(i=0;i<_nchannels*_nsamples;i++){
           dst[i]=WORD2INT(32768.0F*_src[i]);
@@ -3226,28 +3219,28 @@ static int op_float2short_filter(OggOpusFile *_of
       int         mute;
       seed=_of->dither_seed;
       mute=_of->dither_mute;
-    
+
       if(_of->state_channel_count!=_nchannels)mute=65;
 
     /*In order to avoid replacing digital silence with quiet dither noise, we
        mute if the output has been silent for a while.*/
       if(mute>64) memset(_of->dither_a, 0, sizeof(*_of->dither_a)*4*_nchannels);
-    
+
       for(i=0; i<_nsamples; i++){
           int silent;
           silent=1;
-      
+
           for(ci=0; ci<_nchannels; ci++){
               float r;
               float s;
               float err;
               int   si;
-        
+
               s =_src[_nchannels*i+ci];
               silent &= s==0;
               s*=OP_GAIN;
               err=0;
-        
+
               err += OP_FCOEF_B[0]*_of->dither_b[ci*4+0] - OP_FCOEF_A[0]*_of->dither_a[ci*4+0];
               err += OP_FCOEF_B[1]*_of->dither_b[ci*4+1] - OP_FCOEF_A[1]*_of->dither_a[ci*4+1];
               err += OP_FCOEF_B[2]*_of->dither_b[ci*4+2] - OP_FCOEF_A[2]*_of->dither_a[ci*4+2];
@@ -3256,14 +3249,14 @@ static int op_float2short_filter(OggOpusFile *_of
               _of->dither_a[ci*4+4]=_of->dither_a[ci*4+3];
               _of->dither_a[ci*4+3]=_of->dither_a[ci*4+2];
               _of->dither_a[ci*4+2]=_of->dither_a[ci*4+1];
-        
+
               _of->dither_b[ci*4+4]=_of->dither_b[ci*4+3];
               _of->dither_b[ci*4+3]=_of->dither_b[ci*4+2];
               _of->dither_b[ci*4+2]=_of->dither_b[ci*4+1];
 
               _of->dither_a[ci*4]=err;
               s-=err;
-        
+
               if(mute>16){
                   r=0;
               }else{

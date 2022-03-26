@@ -484,7 +484,7 @@ struct OpusParsedURL {
  * This code is not meant to be fast: strspn() with large sets is likely to be
  * slow, but it is very convenient.
  * It is meant to be RFC 3986-compliant.
- * We currently do not support IRIs 
+ * We currently do not support IRIs
  * (Internationalized Resource Identifiers, RFC 3987).
  * Callers should translate them to URIs first.
  */
@@ -505,9 +505,9 @@ static int op_parse_url_impl(OpusParsedURL * _dst, const char *_src)
     const char *path;
     const char *path_end;
     const char *uri_end;
-    
+
     scheme_end = _src + strspn(_src, OP_URL_SCHEME);
-    
+
     if (  (*scheme_end != ':')
         || (scheme_end - _src < 4)
         || (scheme_end - _src > 5)
@@ -520,7 +520,7 @@ static int op_parse_url_impl(OpusParsedURL * _dst, const char *_src)
     }
 
     authority = scheme_end + 3;
- 
+
     /*Make sure all escape sequences are valid to simplify unescaping later. */
     if (op_validate_url_escapes(authority) < 0)
         return OP_EINVAL;
@@ -1133,7 +1133,7 @@ static int op_http_conn_read(OpusHTTPConn * _conn, char *_buf, int _buf_size, in
     do {
         int err;
         ssize_t ret;
-        
+
         op_reset_errno();
         ret = recv(fd.fd, _buf + nread, _buf_size - nread, 0);
         OP_ASSERT(ret <= _buf_size - nread);
@@ -1145,7 +1145,7 @@ static int op_http_conn_read(OpusHTTPConn * _conn, char *_buf, int _buf_size, in
             nread_unblocked += (int) ret;
             continue;
         }
-        /* If we already read some data or the connection was closed, 
+        /* If we already read some data or the connection was closed,
          * return right now. */
         if (ret == 0 || nread > 0)
             break;
@@ -1163,7 +1163,7 @@ static int op_http_conn_read(OpusHTTPConn * _conn, char *_buf, int _buf_size, in
         if (poll(&fd, 1, OP_POLL_TIMEOUT_MS) <= 0)
             return OP_EREAD;
     } while (nread < _buf_size);
-    
+
     _conn->read_bytes += nread_unblocked;
     return nread;
 }
@@ -1237,7 +1237,7 @@ static int op_http_conn_read_response(OpusHTTPConn * _conn, OpusStringBuf * _res
         if (ret <= 0)
             return size <= 0 ? OP_EREAD : OP_FALSE;
             /* We read some data. */
-        
+
         /* Make sure the starting characters are "HTTP".
          * Otherwise we could wind up waiting for a response from something that is
          * not an HTTP server until we time out. */
