@@ -137,7 +137,7 @@ void config(HWND hwndParent)
 void about(HWND hwndParent)
 {
     MessageBox(hwndParent,
-    "OPUS File Player v0.911, by Raymond Gillibert (*.opus, *.opu files).\n"
+    "OPUS File Player v0.912, by Raymond Gillibert (*.opus, *.opu files).\n"
     "Using libopus 1.3.1, libogg 1.3.2 and libopusfile 0.12.\n"
     "You can write me at raymond_gillibert@yahoo.fr if necessary."
     , "About Winamp OPUS Player",MB_OK);
@@ -1009,7 +1009,7 @@ DWORD WINAPI DecodeThread(LPVOID b)
 In_Module mod =
 {
     IN_VER, // defined in IN2.H
-    "OPUS Player v0.911 by Raymond",
+    "OPUS Player v0.912 by Raymond",
     0,      // hMainWindow (filled in by winamp)
     0,      // hDllInstance (filled in by winamp)
     "OPUS\0OPUS Audio File (*.OPUS)\0OPU\0Opus Audio File (*.OPU)\0",

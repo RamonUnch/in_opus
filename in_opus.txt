@@ -230,6 +230,9 @@ FORMAT_TITLE=0 then only the filename willbe displayed in the playmist.
   If you prefer to see the filename only set FORMAT_TITLE=0 in the [IN_OPUS]
   section of the Winamp.ini file.
 
+* Now on Winamp5.5+, the Unified tags dialog will be used by default.
+  You can always set UNIFIED_DIALOG=0 if you prefer the old style.
+
 * Fixed small potential memort leek.
 
 * FIXED: Local codepage will be used for display in non when unicode is not

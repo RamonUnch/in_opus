@@ -57,7 +57,7 @@ END
 //
 // Version
 //
-#define OPUS_VERSION 0,9,1,1
+#define OPUS_VERSION 0,9,1,2
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION OPUS_VERSION
@@ -71,12 +71,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Gillibert Software"
             VALUE "FileDescription", "Opus File decoder plugin for Winamp 2+"
-            VALUE "FileVersion", "0,9,1,1"
+            VALUE "FileVersion", "0,9,1,2"
             VALUE "InternalName", "in_opus.dll"
             VALUE "LegalCopyright", "De mes deux"
             VALUE "OriginalFilename", "in_opus.dll"
             VALUE "ProductName", "Opus input plugin"
-            VALUE "ProductVersion", "0,9,1,1"
+            VALUE "ProductVersion", "0,9,1,2"
         END
     END
     BLOCK "VarFileInfo"
