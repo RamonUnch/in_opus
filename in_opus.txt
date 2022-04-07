@@ -1,9 +1,10 @@
  /-------------------------------------------------------------------------\
-/              OPUS FILE DECODER PLUGIN FOR WINAMP 2+ (V0.911)              \
-|                        RELEASED SEPTEMBER 13, 2020                        |
+/              OPUS FILE DECODER PLUGIN FOR WINAMP 2+ (V0.912)              \
+|                          RELEASED APRIL 07, 2022                          |
 +- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -+
 | Author: Raymond Gillibert.                                                |
-| You can write me to the e-mail address raymond_gillibert at yahoo.fr      |
+| You can write me to the e-mail address raymond_gillibert at yahoo fr      |
+| GIT: https://github.com/RamonUnch/in_opus/                                |
 +---------------------------------------------------------------------------+
 
 JUST COPY The 'in_opus.dll' file in your Winamp "Plugin" directory,
@@ -26,7 +27,7 @@ That is still used for playing music and for retro gaming at my home.
 I had to build myself the libraries because they include dependencies
 that are not present on this old OS.
 
-The plugin was tested and works fine on Windows 95/98SE/NT4/2000/XP/2003/7.
+The plugin was tested and works fine on Windows 95/98SE/NT4/2000/XP/2003/7+.
 
 There is a very good plugin that was already written by thinktink but
 it only works for Winamp 5 and recent windows versions.
@@ -49,7 +50,9 @@ Compiled using gcc from TDM-GCC-5.1, (MinGW) running on Windows Server 2003
   files are supposed to be anyway) the extension has to be .opu or .opus.
 
 * Opens HTTP OPUS Radio streams since v0.610, displays Shoutcast/Icecast
-  server info on Alt+3 since v0.888.
+  server info on Alt+3 since v0.888. If the URL of an opus stream does not
+  end with .opus extension, append ">.opus" without quotes at the end of
+  the url before opening it with Winamp.
 
 * Displays most standard Tags values (Title, Artist, Date... on Alt+3)
   In addition there is a panel at the bottom of the Tag dialog box,
@@ -61,7 +64,7 @@ Compiled using gcc from TDM-GCC-5.1, (MinGW) running on Windows Server 2003
 * Output at any rate from 1-192kHz, since v0.777,
   and using 8, 16, 24 or 32 bits per samples wince v0.892.
 
-* Runs on Windows 95/98SE/NT4/2000/XP/2003/7/8/10, with Winamp 2.x, 5.x,
+* Runs on Windows 95/98SE/NT4/2000/XP/2003/7/8/10/11, with Winamp 2.x, 5.x,
   WACUP and XMPlay 2.1+. You need XMPlay3.7+ to enable UNICODE_FILE.
   Finally the plugin was tested with MediaMonkey 3.2.5 and 4.1.29
 
@@ -76,10 +79,9 @@ they may change in the future if I continue the project.
 
 * No way to edit tags.
 
-* UTF-8 is not really supported under Win9x; all tags are converted
-  to Windows-1252 for display  Thus you will not have all the Unicode
-  characters. Not a big deal if you are from a European country.
-  Under NT the UTF-8 strings are converted to UTF-16 since 0.555.
+* UTF-8 is not really supported under Win9x; all tags are converted to
+  the local codepage for display. Thus you will not have all the Unicode
+  characters. Under NT the UTF-8 strings are converted to UTF-16 since 0.555.
 
 * In the Winamp playlist only the filename/URL will be visible.
   Since v0.911 proper format will be shown in the PL on Winamp 5.x
@@ -112,8 +114,9 @@ OUT_BITS=16                  ; Bits per sample to output (default 16)
 INTERNAL_VOLUME=0            ; 0/1 enable/disable internal volume handeling
 TARGET_LUFS=-23              ; Loudness at which to play back (default -23)
 OGGEXT_HACK=0                ; 1/0 Hack for .ogg extension on/off (default 0)
-UNIFIED_DIALOG=0             ; Toggles Winamp 5.5+ unified dialog on Alt+3
+UNIFIED_DIALOG=1             ; Toggles Winamp 5.5+ unified dialog on Alt+3
 INSTANT_BR=1                 ; Enables instant bitrate display (default 1)
+FORMAT_TITLE=1               ; Uses "Artist - Title" format in the playlist
 
 Set USE_REPLAY_GAIN=1 to use Album gain and set it to 2 for track gain,
 or 0 to disable replay gain (default). You can set it to 3 to use auto-
@@ -203,18 +206,37 @@ when file extension is .ogg (vorbis or opus). In general performances should
 not be affected except maybe on a very slow drive. Default value is 0: Off.
 Note: on version 0.911 this option has a bug, see changelog for details.
 
-UNIFIED_DIALOG can be set to 1 to enable the unified dialog box for file
-properties (like mp3 aac ogg...) that is available in Winamp 5.5+.
-If you prefer this dialog be sure to enable this option that is disabled
-by default (set to 0).
+UNIFIED_DIALOG if set to 1 (default), then the unified dialog box for file
+properties (like mp3 aac ogg...) that is available in Winamp 5.5+ will
+be used instead of the intrenal dialog. If you prefer the internal dialog
+like you have on Winamp2.x be sure to disable this option that is enabled
+by default.
 
 INSTANT_BR allows you to enable (1) or disable (0) instant bitrate display in
 the winamp windows, default is enabled but you may prefer to see the average
 bitrate that will be displayed when this option is set to zero.
 
+FORMAT_TITLE Only applies to Winamp 2.x and allows you to enable "proper"
+display of the playlist entry in the "Artist - Title" format. If you set
+FORMAT_TITLE=0 then only the filename willbe displayed in the playmist.
+
 =============================================================================
 == CHANGELOG                                                               ==
 =============================================================================
+== UPDATE 0.912 ==
+
+* NEW: Support was added for title formatting on Winamp 2.x. The plasylist
+  will now display track as "Artist - Title" if the tags are avilable.
+  If you prefer to see the filename only set FORMAT_TITLE=0 in the [IN_OPUS]
+  section of the Winamp.ini file.
+
+* Fixed small potential memort leek.
+
+* FIXED: Local codepage will be used for display in non when unicode is not
+  available. Before I was always converting unicode->cp1252 which was wrong.
+
+* FIXED: build options were improved inducing an even smaller dll file.
+
 == UPDATE 0.911 ==
 
 * FIXED: Now url streams should work with MediaMonkey.
@@ -510,9 +532,9 @@ Note: the tags name are R128_ALBUM_GAIN and R128_TRACK_GAIN,
 =============================================================================
 If you want you can change the default in_opus options, you can edit the dll
 file with a hex editor. Search for the string:
-"Out=48000, 2, 16 Uni=2, Gain=0, +0.0000, -3.0000, -23, 0, 3, 1, 0, 0, 1, 0 "
+"Out=48000, 2, 16 Uni=2, Gain=0, +0.0000, -3.0000, -23, 0, 3, 1, 0, 0, 1, 1, 0 "
 "Times New Roman or other font with a super long name"
-For in_opus.dll v0.911 (see old txt for previous versions).
+For in_opus.dll v0.912 (see old txt for previous versions).
 
 The 1st value is the output samplerate (default 48000) in Hz.
 
@@ -542,6 +564,8 @@ The 12th value is 1 or 0 to enable or disable .ogg file hack (default 0).
 The 13th value is 1 or 0 to enable or disable unified tags dialog box.
 
 The 14th value is 1 or 0 to enable or disable instant bitrate display.
+
+The 15th value is 1 or 0 to enable or disable title formatting (Winamp 2.x).
 
 The final value (invalid here) is the font size and the font name.
 

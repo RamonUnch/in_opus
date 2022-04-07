@@ -73,6 +73,7 @@ static char USE_DITHERING;
 static char RADIO;
 static char OGGEXT_HACK;
 static char INSTANT_BR;
+static char FORMAT_TITLE;
 
 /////////////////////////////////////////////////////////////////////////////
 // This function is mendatory when linking with MinGW to be able to load dll
@@ -149,13 +150,13 @@ static void readinternalconfig(char *font_str, int *font_height)
     float pre_gain_float, radio_gain_float;
     int UNICODE_FILE_i, RESAMPLE_Q_i, USE_REPLAY_GAIN_i, INTERNAL_VOLUME_i
        , TAGS_DISPLAY_MODE_i, USE_DITHERING_i, TARGET_LUFS_i, bps_i
-       , OGGEXT_HACK_i, UNIFIED_DIALOG_i, INSTANT_BR_i;
+       , OGGEXT_HACK_i, UNIFIED_DIALOG_i, INSTANT_BR_i, FORMAT_TITLE_i;
 
     THREAD_PRIORITY = THREAD_PRIORITY_ABOVE_NORMAL;
 
-    sscanf ("Out=48000, 2, 16 Uni=2, Gain=0, +0.0000, -3.0000, -23, 0, 3, 1, 0, 0, 1, 0 "
+    sscanf ("Out=48000, 2, 16 Uni=2, Gain=0, +0.0000, -3.0000, -23, 0, 3, 1, 0, 1, 1, 1, 0 "
             "Times New Roman or other font with a super long name",
-            "Out=%d, %d, %d Uni=%d, Gain=%d, %f, %f, %d, %d, %d, %d, %d, %d, %d, %d %[^\n]s"
+            "Out=%d, %d, %d Uni=%d, Gain=%d, %f, %f, %d, %d, %d, %d, %d, %d, %d, %d, %d %[^\n]s"
             , &SAMPLERATE, &RESAMPLE_Q_i, &bps_i
             , &UNICODE_FILE_i
             , &USE_REPLAY_GAIN_i, &pre_gain_float, &radio_gain_float
@@ -166,6 +167,7 @@ static void readinternalconfig(char *font_str, int *font_height)
             , &OGGEXT_HACK_i
             , &UNIFIED_DIALOG_i
             , &INSTANT_BR_i
+            , &FORMAT_TITLE_i
             , font_height, font_str);
 
     RESAMPLE_Q        = (char) RESAMPLE_Q_i;
@@ -179,6 +181,7 @@ static void readinternalconfig(char *font_str, int *font_height)
     OGGEXT_HACK       = (char) OGGEXT_HACK_i;
     UNIFIED_DIALOG    = (char) UNIFIED_DIALOG_i;
     INSTANT_BR        = (char) INSTANT_BR_i;
+    FORMAT_TITLE      = (char) FORMAT_TITLE_i;
     PRE_GAIN          = lrintf(pre_gain_float*256.F);
     RADIO_GAIN        = lrintf(radio_gain_float*256.F);
 }
@@ -202,6 +205,7 @@ static void readconfig(char *ini_name, char *rez, char *font_str, int *font_heig
     OGGEXT_HACK      =GetPrivateProfileInt("IN_OPUS", "OGGEXT_HACK", OGGEXT_HACK, ini_name);
     UNIFIED_DIALOG   =GetPrivateProfileInt("IN_OPUS", "UNIFIED_DIALOG", UNIFIED_DIALOG, ini_name);
     INSTANT_BR       =GetPrivateProfileInt("IN_OPUS", "INSTANT_BR", INSTANT_BR, ini_name);
+    FORMAT_TITLE     =GetPrivateProfileInt("IN_OPUS", "FORMAT_TITLE", FORMAT_TITLE, ini_name);
 
     if(BPS!=8 && BPS!=24 && BPS!=32) BPS=16;
 
@@ -381,17 +385,24 @@ void quit()
 // Used for detecting URL streams...
 int isourfile(char *fn)
 {
-    char *fnUTF8, *p;
+    char *fnUTF8=NULL, *p;
     int err = -132;
+    int ret=0;
 
-    if(UNICODE_FILE) fnUTF8 = utf16_to_utf8((wchar_t *)fn); else fnUTF8 = NULL;
-    fn = p = (UNICODE_FILE && fnUTF8) ? fnUTF8 : fn;
+    if (UNICODE_FILE) {
+        fnUTF8 = utf16_to_utf8((wchar_t *)fn);
+        if (!fnUTF8)
+            return 0;
+        fn=fnUTF8;
+    }
+
+    p=fn;
     p+= strlen(p) - 4 ;
     if (isURL(fn)) {
 
-        if(  !_strnicmp(p,".opu", 4)
-          || !_strnicmp(--p,".opus", 5) ){
-            return 1;
+        if (!_strnicmp(p,".opu", 4)
+        ||  !_strnicmp(--p,".opus", 5) ){
+           ret=1;
         }
     } else if (OGGEXT_HACK && !_strnicmp(p, ".ogg", 4)){
         // Maybe an opus file with .ogg ext
@@ -400,19 +411,21 @@ int isourfile(char *fn)
         if (err == 0 && _tmp) {
             op_free(_tmp);
 //            MessageBox(NULL, ".OGG OPUS file", "isourfile", MB_OK);
-            return 1; // This is actually an opus file.
+            ret = 1; // This is actually an opus file.
         } else {
 //            MessageBox(NULL, ".OGG NOT OPUS file", "isourfile", MB_OK);
-            return 0;
+            ret = 0;
         }
     }
 
-    return 0;
+    free(fnUTF8);
+
+    return ret;
 }
 /////////////////////////////////////////////////////////////////////////////
 // This is for the current file only. We could add more features like
 // handelig of peak tag info,
-void apply_replaygain(void)
+static void apply_replaygain(void)
 {
     int lufs_offset;
 
@@ -421,18 +434,18 @@ void apply_replaygain(void)
     if(USE_REPLAY_GAIN) lufs_offset = (isRGavailable(_of))? (TARGET_LUFS+23)*256 : 0;
     else lufs_offset = 0;
 
-    switch(USE_REPLAY_GAIN){
-        case 1: OP_CURRENT_GAIN = OP_ALBUM_GAIN; break;
-        case 2: OP_CURRENT_GAIN = OP_TRACK_GAIN; break;
-        case 3: OP_CURRENT_GAIN = SendMessage(mod.hMainWindow, WM_WA_IPC, 0, IPC_GET_SHUFFLE)
-                                  ? OP_TRACK_GAIN
-                                  : OP_ALBUM_GAIN;
-                                  break;
-         // NO LUFS in case of absolute gain
-        case 4: OP_CURRENT_GAIN = OP_ABSOLUTE_GAIN; lufs_offset = 0; break;
+    switch (USE_REPLAY_GAIN) {
+    case 1: OP_CURRENT_GAIN = OP_ALBUM_GAIN; break;
+    case 2: OP_CURRENT_GAIN = OP_TRACK_GAIN; break;
+    case 3: OP_CURRENT_GAIN = SendMessage(mod.hMainWindow, WM_WA_IPC, 0, IPC_GET_SHUFFLE)
+                              ? OP_TRACK_GAIN
+                              : OP_ALBUM_GAIN;
+                              break;
+     // NO LUFS in case of absolute gain
+    case 4: OP_CURRENT_GAIN = OP_ABSOLUTE_GAIN; lufs_offset = 0; break;
 
-        // By default we use only header gain
-        default: OP_CURRENT_GAIN = OP_HEADER_GAIN;
+    // By default we use only header gain
+    default: OP_CURRENT_GAIN = OP_HEADER_GAIN;
     }
     op_set_gain_offset(_of, OP_CURRENT_GAIN, lufs_offset+(RADIO? RADIO_GAIN: PRE_GAIN));
 }
@@ -444,27 +457,33 @@ int play(char *fn)
     int maxlatency, err;
     DWORD thread_id;
     size_t dwStackSize;
-    char *fnUTF8=NULL, *p;
+    char *fnUTF8=NULL, *p, *ffn;
     paused=0;
     decode_pos_ms=0;
     seek_needed=-1;
 
-    // File opening here
-    if(UNICODE_FILE) fnUTF8 = utf16_to_utf8((wchar_t *)fn);
-    if(VERBOSE) MessageBox(mod.hMainWindow, UNICODE_FILE && fnUTF8? fnUTF8: fn
-                          , "in_opus: play function, going to OPEN FILE",MB_OK);
-    if(isURL(UNICODE_FILE ? fnUTF8 : fn)){
+    // Convert file name in UTF8 if needed.
+    ffn=fn;
+    if (UNICODE_FILE) {
+        fnUTF8 = utf16_to_utf8((wchar_t *)fn);
+        if(!fnUTF8)
+            return 1;
+        ffn = fnUTF8;
+    }
+    if(VERBOSE) MessageBox(mod.hMainWindow, ffn
+                    , "in_opus: play function, going to OPEN FILE",MB_OK);
+    if(isURL(ffn)){
         RADIO = 1;
         mod.is_seekable = 0;
 
         if(VERBOSE) MessageBox(mod.hMainWindow, fn , "in_opus: This is an URL",MB_OK);
-        p = UNICODE_FILE ? fnUTF8 : fn;
+        p = ffn;
         p += strlen(p) - 6;
         if(!_strnicmp(p,">.opus", 6)) *p ='\0';
-        _of = op_open_url(UNICODE_FILE && fnUTF8 ? fnUTF8 : fn, &err, NULL);
+        _of = op_open_url(ffn, &err, NULL);
 
     } else {
-        _of = op_open_file(UNICODE_FILE && fnUTF8 ? fnUTF8 : fn, &err);
+        _of = op_open_file(ffn, &err);
         RADIO = 0;
         mod.is_seekable = 1;
     }
@@ -472,14 +491,14 @@ int play(char *fn)
         if(VERBOSE) MessageBox(mod.hMainWindow, UNICODE_FILE ? fnUTF8: fn , "in_opus: unable to open file",MB_OK);
         // we return error. 1 means to keep going in the playlist, -1
         // means to stop the playlist.
-        if(RADIO) strcpy(lastfn, UNICODE_FILE ? fnUTF8 : fn);
+        if(RADIO) strcpy(lastfn, ffn);
 
-        if(fnUTF8) free(fnUTF8);
+        free(fnUTF8);
         return RADIO? 0 : 1;
     }
 
-    strcpy(lastfn, UNICODE_FILE ? fnUTF8 : fn);
-    free(fnUTF8);
+    strcpy(lastfn, ffn);
+    free(fnUTF8); fnUTF8=NULL;
 
     // -1 and -1 are to specify buffer and prebuffer lengths. -1 means
     // to use the default, which all input plug-ins should really do.
@@ -631,7 +650,7 @@ static int get_opus_length_auto(OggOpusFile *_tmp, char *hours_mode_on)
 
     length_in_ms = _tmp ? op_pcm_total(_tmp, -1)/48 : -1000;
 
-    if(length_in_ms > BIG_LENGTH){ // Could be INT_MAX here it is 1 000 min
+    if(length_in_ms > BIG_LENGTH) { // Could be INT_MAX here it is 1 000 min
         length_in_ms = length_in_ms/BIG_LENGTH_MULT;
         if(hours_mode_on) *hours_mode_on = 1;
     }
@@ -639,6 +658,24 @@ static int get_opus_length_auto(OggOpusFile *_tmp, char *hours_mode_on)
     return (int)length_in_ms; // Will be 60x smaller in hour mode
 }
 
+static const char *GetTTitleA(const char *fn, char *buf)
+{
+    // get non-path portion of lastfn
+    const char *p=fn+strlen(fn);
+    while (p >= fn && *p != '\\') p--; p++;
+
+    const char *ttl=p;
+    if (FORMAT_TITLE) {
+        if( winampGetExtendedFileInfo(fn, "Artist", buf, MAX_PATH/3)
+        &&  strcat(buf, " - ")
+        &&  winampGetExtendedFileInfo(fn, "Title", &buf[strlen(buf)], MAX_PATH/3)) {
+            ttl = buf;
+        }
+    }
+    if (!strcmp(ttl, " - ")) ttl = p;
+
+    return ttl;
+}
 /////////////////////////////////////////////////////////////////////////////
 // This is an odd function. it is used to get the title and/or
 // length of a track.
@@ -659,16 +696,16 @@ void getfileinfo(char *filename, char *title, int *length_in_ms)
         if (length_in_ms) {
             *length_in_ms = get_opus_length_auto(_tmp, &hours_mode_on);
         }
-        if (title){ // get non-path portion of lastfn
-            char *p=lastfn+strlen(lastfn);
-            while (p >= lastfn && *p != '\\') p--; p++;
+        if (title){ // Set the track title in *title
+            char buf[MAX_PATH];
+            const char *ttl = GetTTitleA(lastfn, buf);
 
             if(err && !is_lfn_url && !UNICODE_FILE)
-                sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), p);
+                sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), ttl);
             else if(hours_mode_on)
-                sprintf(title,"%s [h:min]", p);
+                sprintf(title,"%s [h:min]", ttl);
             else
-                strcpy(title, p);
+                strcpy(title, ttl);
         }
         if(_tmp) op_free(_tmp);
     } else { // some other file => filename
@@ -678,15 +715,17 @@ void getfileinfo(char *filename, char *title, int *length_in_ms)
             *length_in_ms = get_opus_length_auto(_tmp, &hours_mode_on);
         }
         if (title){ // get non path portion of filename
-            const char *p=filename+strlen(filename);
-            while (p >= filename && *p != '\\') p--; p++;
+//            const char *p=filename+strlen(filename);
+//            while (p >= filename && *p != '\\') p--; p++;
+            char buf[MAX_PATH];
+            const char *ttl = GetTTitleA(filename, buf);
 
             if(err && !is_fn_url && !UNICODE_FILE)
-                sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), p);
+                sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), ttl);
             else if(hours_mode_on)
-                sprintf(title,"%s [h:min]", p);
+                sprintf(title,"%s [h:min]", ttl);
             else
-                strcpy(title, p);
+                strcpy(title, ttl);
         }
         if(_tmp) op_free(_tmp);
     }
