@@ -14,7 +14,7 @@ That is still used for playing music and for retro gaming at my home.
 I had to build myself the libraries because they include dependencies
 that are not present on this old OS.
 
-The plugin was tested and works fine on Windows 95/98SE/NT4/2000/XP/2003/7.
+The plugin was tested and works fine on Windows 95/98SE/NT4/2000/XP/2003/7/8/10/11.
 
 There is a very good plugin that was already written by thinktink but
 it only works for Winamp 5 and recent windows versions.
@@ -48,7 +48,7 @@ Compiled using gcc from TDM-GCC-5.1, (MinGW) running on Windows Server 2003
 * Output at any rate from 1-192kHz, since v0.777,
   and using 8, 16, 24 or 32 bits per samples wince v0.892.
 
-* Runs on Windows 95/98SE/NT4/2000/XP/2003/7/8/10, with Winamp 2.x, 5.x,
+* Runs on Windows 95/98SE/NT4/2000/XP/2003/7/8/10/11, with Winamp 2.x, 5.x,
   WACUP and XMPlay 2.1+. You need XMPlay3.7+ to enable UNICODE_FILE.
   Finally the plugin was tested with MediaMonkey 3.2.5 and 4.1.29
 
