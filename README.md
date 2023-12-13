@@ -64,9 +64,8 @@ they may change in the future if I continue the project.
 * No way to edit tags.
 
 * UTF-8 is not really supported under Win9x; all tags are converted
-  to Windows-1252 for display  Thus you will not have all the Unicode
-  characters. Not a big deal if you are from a European country.
-  Under NT the UTF-8 strings are converted to UTF-16 since 0.555.
+  to local codepage for display Under NT the UTF-8 strings are converted
+  to UTF-16 since 0.555.
 
 * In the Winamp playlist only the filename/URL will be visible.
   Since v0.911 proper format will be shown in the PL on Winamp 5.x
