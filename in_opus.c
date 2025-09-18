@@ -39,8 +39,8 @@ wchar_t *utf8_to_utf16(const char *utfs);
 DWORD WINAPI DecodeThread(LPVOID b); // the decode thread procedure
 
 // GLOBAL VARIABLES
-In_Module mod;  // the output module (filled in near the bottom of this file)
-char lastfn[3*MAX_PATH]; // currently playing file
+static In_Module mod;  // the output module (filled in near the bottom of this file)
+char lastfn[4*MAX_PATH]; // currently playing file
 
 opus_int64 decode_pos_ms; // current decoding position, in milliseconds.
                           // Used for correcting DSP plug-in pitch changes
@@ -91,8 +91,8 @@ BOOL WINAPI DllMain(HANDLE hInst, ULONG reason_for_call, LPVOID lpReserved)
 void config(HWND hwndParent)
 {
     int font_height;
-    char *monstring= calloc(1024, sizeof(char)); if(!monstring) return;
-    char *font_str = calloc(256,  sizeof(char)); if(!font_str) return;
+    char monstring[1024];
+    char font_str[256];
 
     // To read the config so we show up to date data
     // This also makes a way not to restart winamp...
@@ -128,17 +128,14 @@ void config(HWND hwndParent)
         , INTERNAL_VOLUME, TARGET_LUFS
     );
     MessageBox(hwndParent, monstring, "This is not the configuration you are looking for", MB_OK);
-
-    free(monstring);
-    free(font_str);
 }
 /////////////////////////////////////////////////////////////////////////////
 // About Dialog box...
 void about(HWND hwndParent)
 {
     MessageBox(hwndParent,
-    "OPUS File Player v0.912, by Raymond Gillibert (*.opus, *.opu files).\n"
-    "Using libopus 1.3.1, libogg 1.3.2 and libopusfile 0.12.\n"
+    "OPUS File Player v0.913, by Raymond Gillibert (*.opus, *.opu files).\n"
+    "Using libopus 1.5.2, libogg 1.3.2 and libopusfile 0.12.\n"
     "You can write me at raymond_gillibert@yahoo.fr if necessary."
     , "About Winamp OPUS Player",MB_OK);
 }
@@ -154,7 +151,7 @@ static void readinternalconfig(char *font_str, int *font_height)
 
     THREAD_PRIORITY = THREAD_PRIORITY_ABOVE_NORMAL;
 
-    sscanf ("Out=48000, 2, 16 Uni=2, Gain=0, +0.0000, -3.0000, -23, 0, 3, 1, 0, 1, 1, 1, 0 "
+    sscanf( "Out=48000, 2, 16 Uni=2, Gain=0, +0.0000, -3.0000, -23, 0, 3, 1, 0, 1, 1, 1, 0 "
             "Times New Roman or other font with a super long name",
             "Out=%d, %d, %d Uni=%d, Gain=%d, %f, %f, %d, %d, %d, %d, %d, %d, %d, %d, %d %[^\n]s"
             , &SAMPLERATE, &RESAMPLE_Q_i, &bps_i
@@ -317,7 +314,7 @@ void init()
         // this gets the string of the full ini file path
         char *newini = (char *)SendMessage(mod.hMainWindow, WM_WA_IPC, 0, IPC_GETINIFILE);
         if(!newini) return;
-        strncpy(ini_name, newini, sizeof(ini_name));
+        lstrcpy_sA(ini_name, countof(ini_name), newini);
 
         // Lastfn here contains the winamp.ini path, we read the file only if
         // we have not read it already.
@@ -328,6 +325,14 @@ void init()
         }
     }
 }
+
+char *ffilestart(const char *str)
+{
+    const char *p = strrchr(str, '\\');
+    if (!p) p = strrchr(str, '/');
+    return (char *)p;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // Initialisation called before winamp loads the module.
 static void first_init(char *Fstr, int *Fnth)
@@ -336,7 +341,7 @@ static void first_init(char *Fstr, int *Fnth)
 
     int font_height=0;
 
-    char ini_name[MAX_PATH]={0}, rez[256], font_str[256];
+    char ini_name[MAX_PATH], rez[MAX_PATH], font_str[MAX_PATH];
     int ininamelength;
     char *p;
 
@@ -347,7 +352,8 @@ static void first_init(char *Fstr, int *Fnth)
     //// Find in_opus.ini in plugin folder ////
     GetModuleFileName(NULL, ini_name, sizeof(ini_name));
     ininamelength = strlen(ini_name);
-    p = strrchr(ini_name, '\\');
+    p = ffilestart(ini_name);
+    if (!p) p = ini_name;
     strcpy(p, "\\Plugins\\in_opus.ini");
     if(VERBOSE)MessageBox(NULL, ini_name,"in_opus: in_opus.ini path",MB_OK);
 
@@ -358,7 +364,7 @@ static void first_init(char *Fstr, int *Fnth)
     ininamelength = strlen(ini_name);
     p = strrchr(ini_name, '.');
     if (!p) p = ini_name + ininamelength;
-    strncpy(p, ".ini\0",5);
+    strcpy(p, ".ini");
     if(VERBOSE)MessageBox(NULL, ini_name,"in_opus: Winamp.ini path",MB_OK);
 
     readconfig(ini_name, rez, font_str, &font_height); //winamp.ini
@@ -366,11 +372,11 @@ static void first_init(char *Fstr, int *Fnth)
     TAGS_FONT = applyglobalfont(font_str, font_height);
 
     applyglobal_unicode_fn(ini_name, ininamelength, rez);
-    if(Fstr && Fnth){
-        if(font_height!=0)strcpy(Fstr, font_str);
+    if (Fstr && Fnth) {
+        if(font_height!=0) lstrcpy(Fstr,  font_str);
         else strcpy(Fstr, "(Not user set)");
         *Fnth=font_height;
-    }else{
+    } else {
         strcpy(lastfn, ini_name);
     }
 } // END OF INIT
@@ -378,27 +384,26 @@ static void first_init(char *Fstr, int *Fnth)
 // Called when winanmp quits...
 void quit()
 {
-    if(_of) op_free(_of); // Just in case
+    op_free(_of); // Just in case
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // Used for detecting URL streams...
-int isourfile(char *fn)
+int isourfile(const char *const fn)
 {
-    char *fnUTF8=NULL, *p;
     int err = -132;
     int ret=0;
 
+    const char *ffn = fn;
     if (UNICODE_FILE) {
-        fnUTF8 = utf16_to_utf8((wchar_t *)fn);
-        if (!fnUTF8)
-            return 0;
-        fn=fnUTF8;
+        char *fnUTF8 = utf16_to_utf8((const wchar_t *)fn);
+        if (fnUTF8)
+            ffn = fnUTF8;
     }
 
-    p=fn;
+    const char *p=ffn;
     p+= strlen(p) - 4 ;
-    if (isURL(fn)) {
+    if (isURL(ffn)) {
 
         if (!_strnicmp(p,".opu", 4)
         ||  !_strnicmp(--p,".opus", 5) ){
@@ -406,19 +411,19 @@ int isourfile(char *fn)
         }
     } else if (OGGEXT_HACK && !_strnicmp(p, ".ogg", 4)){
         // Maybe an opus file with .ogg ext
-        OggOpusFile *_tmp = op_test_file(fn, &err);
+        OggOpusFile *_tmp = op_test_file(ffn, &err);
 
         if (err == 0 && _tmp) {
             op_free(_tmp);
-//            MessageBox(NULL, ".OGG OPUS file", "isourfile", MB_OK);
+            //MessageBox(NULL, ".OGG OPUS file", "isourfile", MB_OK);
             ret = 1; // This is actually an opus file.
         } else {
-//            MessageBox(NULL, ".OGG NOT OPUS file", "isourfile", MB_OK);
+            //MessageBox(NULL, ".OGG NOT OPUS file", "isourfile", MB_OK);
             ret = 0;
         }
     }
 
-    free(fnUTF8);
+    if (ffn!=fn) free((char *)ffn);
 
     return ret;
 }
@@ -449,30 +454,127 @@ static void apply_replaygain(void)
     }
     op_set_gain_offset(_of, OP_CURRENT_GAIN, lufs_offset+(RADIO? RADIO_GAIN: PRE_GAIN));
 }
+void TryResolvePath(char *fn)
+{
+    // Nothing to do on Windows 9x
+    // Or in unicode mode
+    if (!isNT || UNICODE_FILE || isURL(fn)) return;
+    if (strchr(fn, '?')) {
+        // We got an invalid full path name
+        // Try to resolve the short path name
+        WIN32_FIND_DATA finddat, finddat2;
+        HANDLE f1 = FindFirstFile(fn, &finddat);
+        if (f1 != INVALID_HANDLE_VALUE) {
+            // We found only one file that can match the pattern
+            if (!FindNextFile(f1, &finddat2)) {
+                char *p = ffilestart(fn);
+                if (p) {
+                    strcpy(p+1, finddat.cAlternateFileName);
+                    return; // Sucess!
+                }
+            }
+            FindClose(f1);
+        }
+    }
+    if (INVALID_FILE_ATTRIBUTES != GetFileAttributes(fn))
+        return; // the file name is valid, nothing to do.
+    // We failed it mean that we can try to list all files in the
+    // file's directorry and match them
+    char *lastbks = ffilestart(fn);
+    if (!lastbks) return;
 
+    // Get ANSI file name only.
+    char * const filenameA = lastbks+1;
+    // get file extension
+    const char * const extA = strrchr(filenameA, '.');
+    if (!extA) return; // no extension, we got a problem!
+
+    { // Check if path exist
+    char oldlastbs = *lastbks;
+    *lastbks = '\0'; // get fn = path only.
+    DWORD attrib = GetFileAttributes(fn);
+    *lastbks = oldlastbs; // restore fn
+    // Path does not exist, we stop here.
+    if (attrib == 0xFFFFFFFF || !(attrib&FILE_ATTRIBUTE_DIRECTORY)) return;
+    }
+
+    // Generate unicode path name (path only).
+    wchar_t wfnsearch[MAX_PATH];
+    wchar_t extW[8];
+    int ret = MultiByteToWideChar(CP_ACP, 0, extA, -1, extW, 8);
+    if (!ret) return;
+    ret = MultiByteToWideChar(CP_ACP, 0, fn, -1, wfnsearch, MAX_PATH);
+    if (!ret) return;
+
+    // Find last backslash
+    wchar_t *lastbsW = wcsrchr(wfnsearch, L'\\');
+    if (!lastbsW) lastbsW = wcsrchr(wfnsearch, L'/');
+    if (!lastbsW) return;
+
+    // We must look for files in the form "x:\path\to\file\*.ext"
+    lastbsW[1] = '\0'; // Null terminate the path after the backslash
+    wcscat(wfnsearch, L"*");
+    wcscat(wfnsearch, extW);
+    // here wfnsearch is in the x:\path\to\file\*.ext form.
+
+    unsigned matches=0;
+    char foundfnShortA[16]=""; // short file name...
+    WIN32_FIND_DATAW finddat;
+    HANDLE f1 = FindFirstFileW(wfnsearch, &finddat);
+    if (f1) {
+        do {
+            //finddat.cAlternateFileName
+            //MessageBoxW(NULL, finddat.cFileName, finddat.cAlternateFileName, 0);
+
+            // filenameA: input ansi file name
+            char foundfilenameA[MAX_PATH];
+            WideCharToMultiByte(CP_ACP, 0, finddat.cFileName, -1, foundfilenameA, MAX_PATH, NULL, NULL);
+            if (!strcmp(filenameA, foundfilenameA)
+            && finddat.cAlternateFileName[0]) {
+                // Copy short name in foundfnShortA.
+                WideCharToMultiByte(CP_ACP, 0, finddat.cAlternateFileName, -1, foundfnShortA, 16, NULL, NULL);
+                matches++;
+            }
+
+        } while (FindNextFileW(f1, &finddat));
+        FindClose(f1);
+
+        if (matches == 1) {
+            // If we only found a single match!
+            filenameA[0] = '\0';
+            strcpy(filenameA, foundfnShortA);
+        }
+    }
+}
+static OggOpusFile *op_open_file_TR(char *path, int *err)
+{
+    TryResolvePath(path);
+    return op_open_file(path, err);
+}
 /////////////////////////////////////////////////////////////////////////////
 // Called when winamp wants to play a file
 int play(char *fn)
 {
+    //MessageBox(NULL, "Play", NULL, 0);
+    if (_of) MessageBox(NULL, "File already opened!", "in_opus error", 0);
     int maxlatency, err;
     DWORD thread_id;
-    size_t dwStackSize;
-    char *fnUTF8=NULL, *p, *ffn;
+    char *p;
     paused=0;
     decode_pos_ms=0;
     seek_needed=-1;
 
     // Convert file name in UTF8 if needed.
-    ffn=fn;
+    char *ffn=fn;
     if (UNICODE_FILE) {
-        fnUTF8 = utf16_to_utf8((wchar_t *)fn);
+        char *fnUTF8 = utf16_to_utf8((wchar_t *)fn);
         if(!fnUTF8)
             return 1;
         ffn = fnUTF8;
     }
     if(VERBOSE) MessageBox(mod.hMainWindow, ffn
                     , "in_opus: play function, going to OPEN FILE",MB_OK);
-    if(isURL(ffn)){
+    if (isURL(ffn)) {
         RADIO = 1;
         mod.is_seekable = 0;
 
@@ -483,22 +585,22 @@ int play(char *fn)
         _of = op_open_url(ffn, &err, NULL);
 
     } else {
-        _of = op_open_file(ffn, &err);
+        _of = op_open_file_TR(ffn, &err);
         RADIO = 0;
         mod.is_seekable = 1;
     }
-    if (_of == NULL || err){ // error opening file
-        if(VERBOSE) MessageBox(mod.hMainWindow, UNICODE_FILE ? fnUTF8: fn , "in_opus: unable to open file",MB_OK);
+    if (_of == NULL || err) { // error opening file
+        if (VERBOSE) MessageBox(mod.hMainWindow, ffn, "in_opus: unable to open file",MB_OK);
         // we return error. 1 means to keep going in the playlist, -1
         // means to stop the playlist.
-        if(RADIO) strcpy(lastfn, ffn);
+        if (RADIO) lstrcpy_sA(lastfn, countof(lastfn), ffn);
 
-        free(fnUTF8);
+        if (ffn!=fn) free(ffn);
         return RADIO? 0 : 1;
     }
 
-    strcpy(lastfn, ffn);
-    free(fnUTF8); fnUTF8=NULL;
+    lstrcpy_sA(lastfn, countof(lastfn), ffn);
+    if (ffn!=fn) free(ffn);
 
     // -1 and -1 are to specify buffer and prebuffer lengths. -1 means
     // to use the default, which all input plug-ins should really do.
@@ -527,9 +629,8 @@ int play(char *fn)
 
     // LAUNCH DECODE THREAD
     if(VERBOSE >= 2) MessageBox(NULL,"Going to Lunch DecodeThread", "in_opus", MB_OK);
-    dwStackSize = 0; //1048576 = 1 MB
     killDecodeThread=0;
-    thread_handle = (HANDLE) CreateThread(NULL,dwStackSize,(LPTHREAD_START_ROUTINE) DecodeThread,NULL,0,&thread_id);
+    thread_handle = (HANDLE) CreateThread(NULL, 0, DecodeThread, NULL, 0, &thread_id);
     SetThreadPriority (thread_handle, THREAD_PRIORITY);
 
     return 0;
@@ -545,6 +646,7 @@ int ispaused() { return paused; }
 // Stop playing.
 void stop()
 {
+    //MessageBox(NULL, "Stop", NULL, 0);
     if (thread_handle != INVALID_HANDLE_VALUE) {
         killDecodeThread=1;
         if (WaitForSingleObject(thread_handle, 5000) == WAIT_TIMEOUT){ // 5 sec
@@ -565,10 +667,8 @@ void stop()
 
     // Write your own file closing code here
     HOURS_MODE_ON=0;
-    if (_of != NULL) {
-        op_free(_of);
-        _of=NULL;
-    }
+    op_free(_of);
+    _of=NULL;
 } // END OF stop()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -636,6 +736,7 @@ void setpan(int pan)
 // This gets called when the use hits Alt+3 to get the file info.
 int infoDlg(char *fn, HWND hwnd)
 {
+    TryResolvePath(fn);
     DoInfoBox(mod.hDllInstance, hwnd, fn);
     return 0;
 }
@@ -662,19 +763,46 @@ static const char *GetTTitleA(const char *fn, char *buf)
 {
     // get non-path portion of lastfn
     const char *p=fn+strlen(fn);
-    while (p >= fn && *p != '\\') p--; p++;
+    while (p >= fn && *p != '\\') p--;
+    p++;
 
     const char *ttl=p;
-    if (FORMAT_TITLE) {
+    if (buf && FORMAT_TITLE) {
         if( winampGetExtendedFileInfo(fn, "Artist", buf, MAX_PATH/3)
-        &&  strcat(buf, " - ")
-        &&  winampGetExtendedFileInfo(fn, "Title", &buf[strlen(buf)], MAX_PATH/3)) {
+        && strcat(buf, " - ") && winampGetExtendedFileInfo(fn, "Title", &buf[strlen(buf)], MAX_PATH/3)) {
             ttl = buf;
         }
     }
     if (!strcmp(ttl, " - ")) ttl = p;
 
     return ttl;
+}
+
+static void internal_getfileinfoA(char *fn, char *title, int *length_in_ms)
+{
+    int err = 0;
+    char hours_mode_on = 0;
+    OggOpusFile *_tmp = NULL;
+
+    char is_fn_url = isURL(fn);
+    if(!is_fn_url) {
+        _tmp = op_open_file_TR(fn, &err);
+    }
+    if (length_in_ms) {
+        *length_in_ms = get_opus_length_auto(_tmp, &hours_mode_on);
+    }
+    if (title) { // Set the track title in *title
+        char buf[MAX_PATH*2];
+        const char *ttl = GetTTitleA(fn, buf);
+
+        if(err && !is_fn_url && !UNICODE_FILE)
+            sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), ttl);
+        else if(hours_mode_on)
+            sprintf(title,"%s [h:min]", ttl);
+        else
+            strcpy(title, ttl);
+    }
+    op_free(_tmp);
 }
 /////////////////////////////////////////////////////////////////////////////
 // This is an odd function. it is used to get the title and/or
@@ -686,103 +814,53 @@ static const char *GetTTitleA(const char *fn, char *buf)
 // If length_in_ms is NULL, no length is copied into it.
 void getfileinfo(char *filename, char *title, int *length_in_ms)
 {
+
+    if (!filename || !*filename) {  // currently playing file => lastfn
+        internal_getfileinfoA(lastfn, title, length_in_ms);
+    } else { // some other file => filename
+        internal_getfileinfoA(filename, title, length_in_ms);
+    }
+}
+
+// fn must be UTF8!
+static void internal_getfileinfoW(const char* fn, wchar_t *title, int *length_in_ms)
+{
     int err=0;
     OggOpusFile *_tmp=NULL;
     char hours_mode_on=0;
 
-    if (!filename || !*filename){  // currently playing file => lastfn
-        char is_lfn_url = isURL(lastfn);
-        if(!is_lfn_url)_tmp = op_open_file (lastfn, &err);
-        if (length_in_ms) {
-            *length_in_ms = get_opus_length_auto(_tmp, &hours_mode_on);
-        }
-        if (title){ // Set the track title in *title
-            char buf[MAX_PATH];
-            const char *ttl = GetTTitleA(lastfn, buf);
-
-            if(err && !is_lfn_url && !UNICODE_FILE)
-                sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), ttl);
-            else if(hours_mode_on)
-                sprintf(title,"%s [h:min]", ttl);
-            else
-                strcpy(title, ttl);
-        }
-        if(_tmp) op_free(_tmp);
-    } else { // some other file => filename
-        char is_fn_url = isURL(filename);
-        if(!is_fn_url) _tmp = op_open_file (filename, &err);
-        if (length_in_ms){ // calculate length
-            *length_in_ms = get_opus_length_auto(_tmp, &hours_mode_on);
-        }
-        if (title){ // get non path portion of filename
-//            const char *p=filename+strlen(filename);
-//            while (p >= filename && *p != '\\') p--; p++;
-            char buf[MAX_PATH];
-            const char *ttl = GetTTitleA(filename, buf);
-
-            if(err && !is_fn_url && !UNICODE_FILE)
-                sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), ttl);
-            else if(hours_mode_on)
-                sprintf(title,"%s [h:min]", ttl);
-            else
-                strcpy(title, ttl);
-        }
-        if(_tmp) op_free(_tmp);
+    char is_fn_url = isURL(fn);
+    if (!is_fn_url)_tmp = op_open_file(fn, &err);
+    if (length_in_ms) {
+        *length_in_ms = get_opus_length_auto(_tmp, &hours_mode_on);
     }
+    if (title){ // get non-path portion of fn which is UTF8 already
+        char *p=lastfn+strlen(lastfn);
+        while (p >= lastfn && *p != '\\') p--;
+        p++;
+        wchar_t *tmpW = utf8_to_utf16(p);
+
+        if(err && !is_fn_url)  wsprintfW(title, L"[in_opus err %d %hs] %s", err, TranslateOpusErr(err), tmpW);
+        else if (hours_mode_on) wsprintfW(title, L"%s [h:min]", tmpW);
+        else wcscpy(title, tmpW);
+
+        free(tmpW);
+    }
+    op_free(_tmp);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 void getfileinfoW(char *filenamew, char *titlew, int *length_in_ms)
 {
-    int err=0;
-    OggOpusFile *_tmp=NULL;
-    char *fnUTF8=NULL, is_lfn_url, is_fn_url;
-    wchar_t *tmpW=NULL, *filename, *title;
-    title  = (wchar_t *)titlew;
-    filename = (wchar_t *)filenamew;
-
-    char hours_mode_on=0;
-
-    if (!filename || !*filename){  // currently playing file
-        is_lfn_url = isURL(lastfn);
-        if(!is_lfn_url)_tmp = op_open_file(lastfn, &err);
-        if (length_in_ms){
-            *length_in_ms = get_opus_length_auto(_tmp, &hours_mode_on);
-        }
-        if (title){ // get non-path portion of lastfn which is UTF8 already
-            char *p=lastfn+strlen(lastfn);
-            while (p >= lastfn && *p != '\\') p--; p++;
-            tmpW = utf8_to_utf16(p);
-
-            if(err && !is_lfn_url)  swprintf(title, L"[in_opus err %d %s] %s", err, TranslateOpusErrW(err), tmpW);
-            else if (hours_mode_on) swprintf(title, L"%s [h:min]", tmpW);
-            else wcscpy(title, tmpW);
-
-            free(tmpW);
-        }
-        if(_tmp) op_free(_tmp);
+    wchar_t *filename = (wchar_t *)filenamew;
+    if (!filename || !*filename) {  // currently playing file
+        internal_getfileinfoW(lastfn, (wchar_t *)titlew, length_in_ms);
     } else {// some other file => filename
-        fnUTF8  = utf16_to_utf8(filename);
-        if(fnUTF8)is_fn_url = isURL(fnUTF8); else return;
-        if(!is_fn_url) _tmp = op_open_file(fnUTF8, &err);
-
-        if (length_in_ms){ // calculate length
-            *length_in_ms = get_opus_length_auto(_tmp, &hours_mode_on);
+        char *fnUTF8  = utf16_to_utf8(filename);
+        if(fnUTF8) {
+            internal_getfileinfoW(fnUTF8, (wchar_t *)titlew, length_in_ms);
+            free(fnUTF8);
         }
-        if (title) // get non path portion of filename
-        {
-            const char *p=fnUTF8+strlen(fnUTF8);
-            while (p >= fnUTF8 && *p != '\\') p--; p++;
-            tmpW = utf8_to_utf16(p);
-
-            if(err && !is_fn_url) swprintf(title, L"[in_opus err %d %s] %s", err, TranslateOpusErrW(err), tmpW);
-            else if (hours_mode_on) swprintf(title, L"%s [h:min]", tmpW);
-            else wcscpy(title, tmpW);
-
-            free(tmpW);
-        }
-        if(_tmp) op_free(_tmp);
-        if(fnUTF8) free(fnUTF8);
     }
 }
 
@@ -996,17 +1074,17 @@ DWORD WINAPI DecodeThread(LPVOID b)
 
     QUIT:
     if (StResampler) { speex_resampler_destroy(StResampler); StResampler=NULL; }
-    if (Obuff) free(Obuff);
-    if (Ibuff) free(Ibuff);
-    if (sample_buffer) free(sample_buffer);
-    if (vis_buffer) free(vis_buffer);
+    free(Obuff);
+    free(Ibuff);
+    free(sample_buffer);
+    free(vis_buffer);
 
     return 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // module definition.
-In_Module mod =
+static In_Module mod =
 {
     IN_VER, // defined in IN2.H
     "OPUS Player v0.912 by Raymond",
@@ -1064,4 +1142,23 @@ __declspec( dllexport ) In_Module * winampGetInModule2()
         if(UNICODE_FILE != 3) mod.GetFileInfo=getfileinfoW; // Except For MediaMonkey
     }
     return &mod;
+}
+
+#ifdef LOCAL_LRINTF
+long __cdecl lrintf(float x)
+{
+    long ll = 0;
+    asm volatile("fistpl %0"  : "=m" (ll) : "t" (x) : "st");
+    return ll;
+}
+#endif
+
+void *__cdecl malloc(size_t sz) { return HeapAlloc(GetProcessHeap(), 0, sz); }
+void *__cdecl calloc(size_t n, size_t sz) { return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, n*sz); }
+void __cdecl free(void *x) { HeapFree(GetProcessHeap(), 0, x); }
+void * __cdecl realloc(void *x, size_t sz)
+{
+    if(!sz) { if(x)HeapFree(GetProcessHeap(), 0, x); return NULL; }
+    if(!x) return HeapAlloc(GetProcessHeap(), 0, sz);
+    return HeapReAlloc(GetProcessHeap(), 0, x, sz);
 }
