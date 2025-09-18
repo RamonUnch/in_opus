@@ -1,40 +1,34 @@
 CC=gcc
 
 CFLAGS=-I. -I./opus \
-	-m32 -Os \
-	-Wall -Wextra \
-	-Wno-unused-parameter \
-	-Wstack-usage=4096 \
-	-fno-stack-check \
-	-fno-stack-protector \
-	-mno-stack-arg-probe \
-	-momit-leaf-frame-pointer \
-	-march=i386 -mtune=i686 -ffast-math \
-	-flto -flto-partition=none \
-	-fno-ident \
-	-mpreferred-stack-boundary=2 \
-	-foptimize-strlen \
+    -m32 -Os \
+    -Wall -Wextra \
+    -Wno-unused-parameter \
+    -fno-stack-check \
+    -fno-stack-protector \
+    -mno-stack-arg-probe \
+    -momit-leaf-frame-pointer \
+    -march=i486 -mtune=i686 \
+    -flto \
+    -fno-ident \
+    -mpreferred-stack-boundary=2 \
+    -foptimize-strlen \
 	-fno-exceptions \
 	-fno-dwarf2-cfi-asm \
 	-fno-asynchronous-unwind-tables \
-	-fmerge-all-constants \
-	-fno-semantic-interposition \
-	-fgcse-sm \
-	-fgcse-las \
-	-fipa-pta \
+    -Wstack-usage=4096 \
+    -fgcse-sm \
+    -fgcse-las \
 	-D__USE_MINGW_ANSI_STDIO=0 \
-	-fno-plt
 
 
-#	-DLOCAL_LRINTF \
-
-#   -fomit-frame-pointer \
+#    -fomit-frame-pointer \
 
 # -freorder-blocks -fweb -frename-registers -funswitch-loops\
 # -fwhole-program -fstrict-aliasing -fschedule-insns
 # -D__SSE1 sse_func.o
 
-LDFLAGS= -nostdlib -lgcc -lm -lkernel32 -lmsvcrt -luser32 -lgdi32 -lwsock32 -s
+LDFLAGS= -nostdlib -lgcc -lkernel32 -lmsvcrt -luser32 -lgdi32 -lwsock32 -s
 LDFLAGS+= -Wl,-s,-dynamicbase \
     -Wl,-nxcompat \
     -Wl,--no-seh \
@@ -45,7 +39,7 @@ LDFLAGS+= -Wl,-s,-dynamicbase \
 
 in_opus.dll: in_opus.o resample.o infobox.o http.o wspiapi.o resource.o
 	$(CC) -o in_opus.dll in_opus.o resample.o infobox.o http.o wspiapi.o resource.o\
-	 oflto152/*.o opusfile/*.c logg/*.c -e_DllMain@12 -mdll $(LDFLAGS) $(CFLAGS)
+	 oflto/*.o opusfile/*.c logg/*.c -e_DllMain@12 -mdll $(LDFLAGS) $(CFLAGS)
 
 	cp in_opus.dll "D:\Program Files\MediaPlayers\Winamp\Plugins"
 	cp in_opus.dll "D:\Shared docs"
@@ -55,7 +49,6 @@ in_opus.dll: in_opus.o resample.o infobox.o http.o wspiapi.o resource.o
 	cp in_opus.dll "D:\Program Files\MediaPlayers\MediaMonkey3\Plugins"
 	cp in_opus.dll "D:\Program Files\MediaPlayers\MediaMonkey4\Plugins"
 	cp in_opus.dll "D:\Program Files\MediaPlayers\Winamp591rc3\Plugins"
-
 
 in_opus.o : in_opus.c infobox.h resample.h resource.h
 	$(CC) -c in_opus.c $(CFLAGS)

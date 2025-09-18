@@ -16,13 +16,36 @@ extern char UNICODE_FILE;
 extern char TARGET_LUFS;
 extern char UNIFIED_DIALOG;
 
-int isourfile(char *fn);
-
 #include "utf_ansi.c"
 
 /***************************************
  *  SHARED HELPERS                     *
  ***************************************/
+const char *lstrcpy_sA(char *__restrict__ dest, size_t N, const char *src)
+{
+    char *orig=dest;
+    char *dmax=dest+N-1; /* keep space for a terminating NULL */
+    for (; dest<dmax && (*dest=*src); ++src,++dest);  /* then append from src */
+    *dest='\0'; /* ensure result is NULL terminated */
+    return orig;
+}
+__cdecl char *strncpy(char *dest, const char *src, size_t N)
+{
+    char *orig=dest;
+    char *dmax=dest+N-1; /* keep space for a terminating NULL */
+    for (; dest<dmax && (*dest=*src); ++src,++dest);  /* then append from src */
+    *dest='\0'; /* ensure result is NULL terminated */
+    return orig;
+}
+static const wchar_t *lstrcpy_sW(wchar_t *__restrict__ dest, size_t N, const wchar_t *src)
+{
+    wchar_t *orig=dest;
+    wchar_t *dmax=dest+N-1; /* keep space for a terminating NULL */
+    for (; dest<dmax && (*dest=*src); ++src,++dest);  /* then append from src */
+    *dest='\0'; /* ensure result is NULL terminated */
+    return orig;
+}
+
 static int has_opus_ext(const char *p)
 {
     p+=strlen(p); p-=4;
@@ -42,16 +65,13 @@ static int has_opus_extW(const wchar_t *p)
     }
 }
 
-char isURL(char *fn)
+char isURL(const char *const fn)
 {
-    if(fn && fn[0] == 'h' && fn[1] == 't' && fn[2] == 't'
-          && fn[3] == 'p' && fn[4] == ':' && fn[5] == '/' && fn[6] == '/')
-        return 1;
-    else
-       return 0;
+    return fn && fn[0] == 'h' && fn[1] == 't' && fn[2] == 't'
+          && fn[3] == 'p' && fn[4] == ':' && fn[5] == '/' && fn[6] == '/';
 }
 
-char isRGavailable(OggOpusFile *_of)
+char isRGavailable(const OggOpusFile *_of)
 {
     if(_of == NULL) return 0;
     if(op_get_header_gain(_of)) return 1; // Il y as un gain...
@@ -85,27 +105,6 @@ const char *TranslateOpusErr(int err)
          case OP_ENOSEEK    : return "Unseekable stream";
          case OP_EBADTIMESTAMP: return "Bad timestamp";
          default: return "?";
-     }
-}
-const wchar_t *TranslateOpusErrW(int err)
-{
-     switch(err){
-         case OP_FALSE      : return L"Fail";
-         case OP_EOF        : return L"End of file";
-         case OP_HOLE       : return L"Corupt page";
-         case OP_EREAD      : return L"Read failed";
-         case OP_EFAULT     : return L"Offline";
-         case OP_EIMPL      : return L"Unsupported";
-         case OP_EINVAL     : return L"Invalid param";
-         case OP_ENOTFORMAT : return L"Not an opus stream";
-         case OP_EBADHEADER : return L"Bad header";
-         case OP_EVERSION   : return L"Bad version";
-         case OP_ENOTAUDIO  : return L"Not audio?";
-         case OP_EBADPACKET : return L"Packet failed to decode";
-         case OP_EBADLINK   : return L"Bad link";
-         case OP_ENOSEEK    : return L"Unseekable stream";
-         case OP_EBADTIMESTAMP: return L"Bad timestamp";
-         default: return L"?";
      }
 }
 
@@ -163,7 +162,7 @@ static void SetTextML(HWND hwnd, int IDC, const char *TagN, const OpusTags *_tag
 
 static void SetFonts(HWND hwnd,HFONT fonte)
 {
-    if(fonte != NULL && hwnd != NULL){
+    if (fonte != NULL && hwnd != NULL) {
         WPARAM newfont = (WPARAM)fonte;
         SendDlgItemMessage(hwnd, IDC_NAME,       WM_SETFONT, newfont, TRUE);
         SendDlgItemMessage(hwnd, IDC_TITLE,      WM_SETFONT, newfont, TRUE);
@@ -183,16 +182,9 @@ static void SetFonts(HWND hwnd,HFONT fonte)
 }
 static const char *GetRGmode(char use_replay_gain)
 {
-    const char *rg_mode;
-
-    switch(use_replay_gain){
-        case 1: rg_mode="Album"; break;
-        case 2: rg_mode="Track"; break;
-        case 3: rg_mode="Auto";  break;
-        case 4: rg_mode="Null"; break;
-        default: rg_mode="Off";
-    }
-    return rg_mode;
+    static char const * const table[] =
+        { "Off", "Album", "Track", "Auto", "Null", "Off" };
+    return table[ (size_t)use_replay_gain < countof(table) ? use_replay_gain : 0 ];
 }
 /*************************************
  * Infobox Initialisation for files  *
@@ -203,52 +195,52 @@ static BOOL InitInfoboxInfo(HWND hwnd, const char *file)
     LONGLONG filesize=0;
     OggOpusFile *_tmp=NULL;
     const OpusTags *_tags=NULL;
-    char *tmpstr, *p, *fnUTF8=NULL;
-    int err, length=0, tgain=0, again=0, hgain=0;
-    float bps=0;
-    int retA=-1, retT=-1, lufs_offset=0;
-    char *buffer =NULL;
+    char *fnUTF8=NULL;
+    int err = 0;
     char file_is_url;
-    char ret;
-
-    buffer = malloc(258*sizeof(char)); if(!buffer) return FALSE;
+    BOOL ret;
+    char buffer[300];
 
     /* write file name as given by Winamp */
-    if(UNICODE_FILE){
+    const char *ffn = file;
+    if (UNICODE_FILE) {
         fnUTF8 = utf16_to_utf8((wchar_t *)file);
-
-        if(TAGS_DISPLAY_MODE == 2 || (TAGS_DISPLAY_MODE == 3 && isNT)){
-            SetDlgItemTextW(hwnd, IDC_NAME, (wchar_t *)file); // UNICODE
-        } else if(TAGS_DISPLAY_MODE == 1){
-            tmpstr=utf8_to_ansi(fnUTF8);
-            if(tmpstr) SetDlgItemText(hwnd, IDC_NAME, tmpstr); // ANSI
-            free(tmpstr);
-        } else if(TAGS_DISPLAY_MODE == 0){
-            SetDlgItemText(hwnd, IDC_NAME, fnUTF8); // raw utf-8 dump
+        if (fnUTF8) {
+            ffn = fnUTF8;
+            if(TAGS_DISPLAY_MODE == 2 || (TAGS_DISPLAY_MODE == 3 && isNT)){
+                SetDlgItemTextW(hwnd, IDC_NAME, (wchar_t *)file); // UNICODE
+            } else if(TAGS_DISPLAY_MODE == 1){
+                char *tmpstr=utf8_to_ansi(fnUTF8);
+                if(tmpstr) SetDlgItemText(hwnd, IDC_NAME, tmpstr); // ANSI
+                free(tmpstr);
+            } else if(TAGS_DISPLAY_MODE == 0){
+                SetDlgItemText(hwnd, IDC_NAME, fnUTF8); // raw utf-8 dump
+            }
         }
     } else { // no UNICODE_FILE
         SetDlgItemText(hwnd, IDC_NAME, file); // file is ANSI
     }
-    file_is_url = isURL(UNICODE_FILE ? fnUTF8 : (char *)file);
+    file_is_url = isURL(ffn);
 
     /* stream data and vorbis comment */
-    if(file_is_url){
+    if (file_is_url) {
         int L;
         _info = &info_real;
         if(_info == NULL) goto FAIL;
         opus_server_info_init(_info);
 
-        p = UNICODE_FILE ? fnUTF8 : (char *)file;
+        const char *p = ffn;
         L = strlen(p) - 6;
         if(!_strnicmp(p+L, ">.opus", 6)){
-            strcpy(buffer, p);
+            lstrcpy_sA(buffer, countof(buffer), p);
             buffer[L]='\0';
             L=0;
         }
         _tmp = op_open_url(!L? buffer: p, &err,OP_GET_SERVER_INFO(_info),NULL);
 
     } else { // NOT an URL
-        _tmp = op_open_file(UNICODE_FILE? fnUTF8: file, &err);
+        if (ffn)
+            _tmp = op_open_file(ffn, &err);
     }
 
     if (!_tmp) {
@@ -256,31 +248,48 @@ static BOOL InitInfoboxInfo(HWND hwnd, const char *file)
             sprintf(buffer,"Cannot open file: \n\n%s\n\n"
                    "Error No. -132: Not an opus stream\n"
                    "Try renaming the stream adding ?.mp3 or ?.ogg at the end."
-                   , UNICODE_FILE ? fnUTF8: file);
+                   , ffn);
 
         } else {
             sprintf(buffer, "Cannot open file: \n\n%s\n\n Error No. %d: %s"
-                   , UNICODE_FILE? fnUTF8: file, err, TranslateOpusErr(err));
+                   , ffn, err, TranslateOpusErr(err));
         }
         MessageBox(hwnd, buffer, "OPUS Stream Error", MB_OK);
 
         goto FAIL;
     }
-    if(fnUTF8) { free(fnUTF8); fnUTF8=NULL; }
+    free(fnUTF8); fnUTF8=NULL;
 
 
-    if(!file_is_url){
+    /* Get Bitrate, Gain and duration info */
+    if (!file_is_url) {
         _tags = op_tags(_tmp, -1);
         if (!_tags) goto FAIL;
 
-        filesize = op_raw_total (_tmp, -1);              // In Bites
-        length = (int)(op_pcm_total(_tmp, -1)/48000);    // File length in seconds
-        bps = (float)op_bitrate(_tmp, -1);               // In bits per seconds
-        retT = opus_tags_get_track_gain (_tags, &tgain); // Track Gain
-        retA = opus_tags_get_album_gain (_tags, &again); // Album Gain
-        hgain = op_get_header_gain(_tmp); // Header gain, all in 256th dB
+        /* Repaly gains. */
+        int tgain=0, again=0, lufs_offset=0;
+        int retT = opus_tags_get_track_gain(_tags, &tgain); // Track Gain
+        int retA = opus_tags_get_album_gain(_tags, &again); // Album Gain
+        int hgain = op_get_header_gain(_tmp); // Header gain, all in 256th dB
+        if(hgain != 0 || retT == 0 || retA == 0)
+            lufs_offset = (23 + TARGET_LUFS)*256;
 
-        sprintf(buffer, "%I64d bytes (%d ch) for %d h %d min %d s at %.1f Kbps"
+        /* Fill small Encoder/RG info at the bottom */
+        sprintf(buffer
+           ,"Encoder: %s\nTrk %+.1f dB, Alb %+.1f dB, Hed %+.1f dB, (%s)"
+           , opus_tags_query(_tags, "ENCODER", 0)
+           ,((float)(tgain))*(1.F/256.F)
+           ,((float)(again))*(1.F/256.F)
+           ,((float)(hgain+lufs_offset))*(1.F/256.F)
+           ,GetRGmode(USE_REPLAY_GAIN)  );
+
+        SetDlgItemText(hwnd, IDC_ENCODER, buffer);
+
+        /* File size / duration / bps */
+        filesize = op_raw_total (_tmp, -1);              // In Bites
+        unsigned length = (unsigned)(op_pcm_total(_tmp, -1)/48000);// File length in seconds
+        float bps = (float)op_bitrate(_tmp, -1);        // In bits per seconds
+        sprintf(buffer, "%I64d bytes (%d ch) for %u h %u min %u s at %.1f Kbps"
                       , filesize, op_channel_count(_tmp, -1) ,(length/3600)
                       , (length/60)%60, length%60, bps/1000.F);
     } else {
@@ -288,11 +297,11 @@ static BOOL InitInfoboxInfo(HWND hwnd, const char *file)
                       , _info->server, op_channel_count(_tmp, -1)
                       , _info->bitrate_kbps);
     }
-
+    /* Print size / duration / bps  */
     SetDlgItemText(hwnd, IDC_INFO, buffer);
 
-    /* TAGS */
 
+    /* OPUS TAGS */
     SetFonts(hwnd, TAGS_FONT); // Setting spetial font if needed
 
     if(!file_is_url){ // Normal TAGS
@@ -320,20 +329,6 @@ static BOOL InitInfoboxInfo(HWND hwnd, const char *file)
         opus_server_info_clear(_info);
     }
 
-    /* Small TAG at the bottom */
-    if(hgain != 0 || retT == 0 || retA == 0)
-        lufs_offset = (23 + TARGET_LUFS)*256;
-
-    sprintf(buffer
-           ,"Encoder: %s\nTrk %+.1f dB, Alb %+.1f dB, Hed %+.1f dB, (%s)"
-           ,file_is_url? "Not ckecked": opus_tags_query(_tags, "ENCODER", 0)
-           ,((float)(tgain))*(1.F/256.F)
-           ,((float)(again))*(1.F/256.F)
-           ,((float)(hgain+lufs_offset))*(1.F/256.F)
-           ,GetRGmode(USE_REPLAY_GAIN)  );
-
-    SetDlgItemText(hwnd, IDC_ENCODER, buffer);
-
     /* END OF TAGS */
 
     ret=TRUE; goto FREALL; // if we are here everything is good.
@@ -341,9 +336,8 @@ static BOOL InitInfoboxInfo(HWND hwnd, const char *file)
     FAIL: ret=FALSE;
 
     FREALL: /* Free all mem and exit */
-    if(fnUTF8) free(fnUTF8);
-    free(buffer);
-    if(_tmp) op_free(_tmp);
+    free(fnUTF8);
+    op_free(_tmp);
 
     return ret;
 }
@@ -382,24 +376,26 @@ static INT_PTR CALLBACK InfoProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 void DoInfoBox(HINSTANCE inst, HWND hwnd, const char *filename)
 {
-    int error;
+    int ret;
 
     if(TAGS_DISPLAY_MODE == 2 || (TAGS_DISPLAY_MODE == 3 && isNT)){
-        error = DialogBoxParamW(inst, MAKEINTRESOURCEW(IDD_INFOBOX), hwnd, InfoProc, (LONG)filename);
+        SetLastError(0);
+        ret = DialogBoxParamW(inst, MAKEINTRESOURCEW(IDD_INFOBOX), hwnd, InfoProc, (LONG)filename);
 
-        if(error == 0){
-            MessageBox(hwnd, "Error: cannot create Unicode Dialog Box,\n"
+        if (ret == 0 || GetLastError() == 120) {
+            /*MessageBox(hwnd, "Error: cannot create Unicode Dialog Box,\n"
                         "Your system does not handle 'DialogBoxParamW' function\n"
                         "Go in wianmp.ini and set TAGS_DISPLAY_MODE=0, 1 or 3\n"
                         "in the [IN_OPUS] section\n\n"
                         "Disabling Unicode support for this session"
                       , "in_opus error", MB_OK);
-
+            */
             TAGS_DISPLAY_MODE=1;
         }
     }
-    if(TAGS_DISPLAY_MODE <= 1 || (TAGS_DISPLAY_MODE == 3 && !isNT)){
-        error = DialogBoxParam(inst, MAKEINTRESOURCE(IDD_INFOBOX), hwnd, InfoProc, (LONG)filename);
+
+    if (TAGS_DISPLAY_MODE <= 1 || (TAGS_DISPLAY_MODE == 3 && !isNT)) {
+        ret = DialogBoxParam(inst, MAKEINTRESOURCE(IDD_INFOBOX), hwnd, InfoProc, (LONG)filename);
     }
 }
 
@@ -414,7 +410,6 @@ void DoInfoBox(HINSTANCE inst, HWND hwnd, const char *filename)
 // They can consist of, but are not limited to the following (and plug-in specific tags can be handled):
 // "track", "title", "artist", "album", "year", "comment", "genre", "length",
 // "type", "family", "formatinformation", "gain", "bitrate", "vbr", "stereo" and more
-
 int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest, size_t destlen)
 {
     const char *z = NULL;
@@ -423,6 +418,7 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
     OggOpusFile *_of;
 
 
+    //MessageBoxA(NULL, data, fn, 0);
     if (!_stricmp(data, "type")) {
         dest[0] = '0'; // audio format
         return 1;
@@ -440,11 +436,11 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
     if(_of && !err){ // if file opened correctly, open tags.
         _tags = op_tags(_of, -1);
     } else if (err != -132 || has_opus_ext(fn)) { // if the file could not be opened and is opus.
-        if(_of) op_free(_of); // free it in case.
+        op_free(_of); // free it in case.
         if(!_stricmp(data, "title")) {
             // send error message...
-            char *p;
-            if((p = strrchr(fn, '\\'))) p++; else p = (char *)fn;
+            const char *p;
+            if ( (p = ffilestart(fn)) ) p++; else p = (char *)fn;
 
             sprintf(dest, "[in_opus err %d %s] %s"
                 , err, TranslateOpusErr(err), p);
@@ -471,7 +467,7 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
             "Header gain: %.2f dB\n"
             "Input samplerate: %d Hz\n"
             "Encoder: %s\n"
-           , op_raw_total (_of, -1)
+           , op_raw_total(_of, -1)
            , op_pcm_total(_of, -1)/48000
            , (float)op_bitrate(_of, -1)/1000.F
            , op_channel_count(_of, -1)
@@ -484,7 +480,7 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
 
     } else if (!_stricmp(data, "replaygain_track_gain")) {
         int tgain=0;
-        opus_tags_get_track_gain (_tags, &tgain);
+        opus_tags_get_track_gain(_tags, &tgain);
         sprintf(dest, "%.2f", (float)tgain/256.f);
         goto finish;
 
@@ -497,9 +493,9 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
     } else if (!_stricmp(data, "comment")) { // convert to DOS
         char *dos;
         z = opus_tags_query(_tags, "DESCRIPTION", 0);
-        dos = unix2dos(z); if(!dos) return 0;
-        dest[0] = '\0';
-        strncat(dest, dos, destlen-1);
+        dos = unix2dos(z);
+        if(!dos) goto fail;
+        lstrcpy_sA(dest, destlen-1, dos);
         free(dos);
         goto finish;
 
@@ -513,8 +509,7 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
         z = opus_tags_query(_tags, data, 0);
     }
     if (z) {
-       dest[0] = '\0';
-       strncat(dest, z, destlen-1);
+       lstrcpy_sA(dest, destlen-1, z);
        goto finish;
     }
     fail:
@@ -529,40 +524,42 @@ int winampGetExtendedFileInfo_utf8(const char *fn, const char *data, char *dest,
 __declspec(dllexport) int winampGetExtendedFileInfo(const char *fn, const char *data, char *dest, size_t destlen)
 {
     char *dest_utf8, *dest_ansi;
-    int ret;
+    int ret = 0;
 
     dest_utf8=calloc(destlen, sizeof(char)); if(!dest_utf8) return 0;
 
-    if(winampGetExtendedFileInfo_utf8(fn, data, dest_utf8, destlen)) {
-        dest_ansi=utf8_to_ansi(dest_utf8); if(!dest_ansi) return 0;
+    if (winampGetExtendedFileInfo_utf8(fn, data, dest_utf8, destlen)) {
+        dest_ansi = utf8_to_ansi(dest_utf8); if (!dest_ansi) goto fail;
         dest[0] = '\0';
-        strncat(dest, dest_ansi, destlen-1);
+        lstrcpy_sA(dest, destlen-1, dest_ansi);
         free(dest_ansi);
         ret = 1;
     } else {
         ret = 0;
     }
+    fail:
     free(dest_utf8);
     return ret;
 }
 
 __declspec(dllexport) int winampGetExtendedFileInfoW(const wchar_t *fn, const char *data, wchar_t *dest, size_t destlen)
 {
-    char *dest_utf8, *fnUTF8;
-    wchar_t *dest_w;
-    int ret;
-    fnUTF8 = utf16_to_utf8(fn);                if(!fnUTF8)    return 0;
-    dest_utf8 = calloc(destlen, sizeof(char)); if(!dest_utf8) return 0;
+    char *dest_utf8 = NULL, *fnUTF8 = NULL;
+    int ret =0;
+    fnUTF8 = utf16_to_utf8(fn);                if(!fnUTF8)    goto fail;
+    dest_utf8 = calloc(destlen, sizeof(char)); if(!dest_utf8) goto fail;
 
-    if(winampGetExtendedFileInfo_utf8(fnUTF8, data, dest_utf8, destlen)) {
-        dest_w = utf8_to_utf16(dest_utf8); if(!dest_w) return 0;
+    if (winampGetExtendedFileInfo_utf8(fnUTF8, data, dest_utf8, destlen)) {
+        wchar_t *dest_w = utf8_to_utf16(dest_utf8); if(!dest_w) goto fail;
         dest[0] = '\0';
-        wcsncat(dest, dest_w, destlen-1);
+        lstrcpy_sW(dest, destlen-1, dest_w);
         free(dest_w);
         ret = 1;
     } else {
         ret = 0;
     }
+
+    fail:
     free(dest_utf8);
     free(fnUTF8);
 
@@ -595,7 +592,7 @@ __declspec(dllexport) int winampUseUnifiedFileInfoDlg(const wchar_t *fn)
             fnUTF8 = utf16_to_utf8(fn); if(!fnUTF8) return 0;
             _tmp = op_test_file(fnUTF8, &err);
             free(fnUTF8);
-            if(_tmp) op_free(_tmp);
+            op_free(_tmp);
 
             if(err == 0){
 //                MessageBox(NULL,"OGG file and return 1","winampUseUnifiedFileInfoDlg",MB_OK);
