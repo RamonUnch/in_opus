@@ -148,33 +148,33 @@ extern "C" {
   int WINAPI WspiapiGetNameInfo (const struct sockaddr *sa,socklen_t salen,char *host,size_t hostlen,char *serv,size_t servlen,int flags);
   void WINAPI WspiapiFreeAddrInfo (struct addrinfo *ai);
 
-static __inline char*
-gai_strerrorA(int ecode)
-{
-	static char message[1024+1];
-	DWORD dwFlags = FORMAT_MESSAGE_FROM_SYSTEM
-	              | FORMAT_MESSAGE_IGNORE_INSERTS
-		      | FORMAT_MESSAGE_MAX_WIDTH_MASK;
-	DWORD dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
-  	FormatMessageA(dwFlags, NULL, ecode, dwLanguageId, (LPSTR)message, 1024, NULL);
-	return message;
-}
-static __inline WCHAR*
-gai_strerrorW(int ecode)
-{
-	static WCHAR message[1024+1];
-	DWORD dwFlags = FORMAT_MESSAGE_FROM_SYSTEM
-	              | FORMAT_MESSAGE_IGNORE_INSERTS
-		      | FORMAT_MESSAGE_MAX_WIDTH_MASK;
-	DWORD dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
-  	FormatMessageW(dwFlags, NULL, ecode, dwLanguageId, (LPWSTR)message, 1024, NULL);
-	return message;
-}
-#ifdef UNICODE
-#define gai_strerror gai_strerrorW
-#else
-#define gai_strerror gai_strerrorA
-#endif
+//static __inline char*
+//gai_strerrorA(int ecode)
+//{
+//	static char message[1024+1];
+//	DWORD dwFlags = FORMAT_MESSAGE_FROM_SYSTEM
+//	              | FORMAT_MESSAGE_IGNORE_INSERTS
+//		      | FORMAT_MESSAGE_MAX_WIDTH_MASK;
+//	DWORD dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+//  	FormatMessageA(dwFlags, NULL, ecode, dwLanguageId, (LPSTR)message, 1024, NULL);
+//	return message;
+//}
+//static __inline WCHAR*
+//gai_strerrorW(int ecode)
+//{
+//	static WCHAR message[1024+1];
+//	DWORD dwFlags = FORMAT_MESSAGE_FROM_SYSTEM
+//	              | FORMAT_MESSAGE_IGNORE_INSERTS
+//		      | FORMAT_MESSAGE_MAX_WIDTH_MASK;
+//	DWORD dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+//  	FormatMessageW(dwFlags, NULL, ecode, dwLanguageId, (LPWSTR)message, 1024, NULL);
+//	return message;
+//}
+//#ifdef UNICODE
+//#define gai_strerror gai_strerrorW
+//#else
+//#define gai_strerror gai_strerrorA
+//#endif
 
 #ifdef __cplusplus
 }
