@@ -369,16 +369,21 @@ typedef int op_sock;
 
 # endif
 
+# if defined(_WIN32)
+// Use GetTickCount on windows
+typedef DWORD op_time;
+
+# else // Not WIN32
+
 # ifdef OP_HAVE_CLOCK_GETTIME
 #  include <time.h>
 typedef struct timespec op_time;
 # else
 #  include <sys/timeb.h>
 typedef struct timeb op_time;
-# if defined(_WIN32)
-#  define ftime _ftime
 # endif
-# endif
+
+# endif // _WIN32
 
 #ifdef OP_USE_OPENSSL
 # include <openssl/x509v3.h>
@@ -467,8 +472,8 @@ typedef struct timeb op_time;
 
 /*Does this URL use the default port for its scheme?*/
 # define OP_URL_IS_DEFAULT_PORT(_url) \
- (!OP_URL_IS_SSL(_url)&&(_url)->port==80 \
- ||OP_URL_IS_SSL(_url)&&(_url)->port==443)
+ (  (!OP_URL_IS_SSL(_url)&&(_url)->port==80 ) \
+ || ( OP_URL_IS_SSL(_url)&&(_url)->port==443) )
 
 struct OpusParsedURL{
   /*Either "http" or "https".*/
@@ -673,7 +678,7 @@ static int op_sb_ensure_capacity(OpusStringBuf *_sb,int _capacity){
   buf=_sb->buf;
   cbuf=_sb->cbuf;
   if(_capacity>=cbuf-1){
-    if(OP_UNLIKELY(cbuf>INT_MAX-1>>1))return OP_EFAULT;
+    if(OP_UNLIKELY(cbuf>(INT_MAX-1)>>1))return OP_EFAULT;
     if(OP_UNLIKELY(_capacity>=INT_MAX-1))return OP_EFAULT;
     cbuf=OP_MAX(2*cbuf+1,_capacity+1);
     buf=_ogg_realloc(buf,sizeof(*buf)*cbuf);
@@ -692,7 +697,7 @@ static int op_sb_grow(OpusStringBuf *_sb,int _max_size){
   buf=_sb->buf;
   cbuf=_sb->cbuf;
   OP_ASSERT(_max_size<=INT_MAX-1);
-  cbuf=cbuf<=_max_size-1>>1?2*cbuf+1:_max_size+1;
+  cbuf=cbuf<=(_max_size-1)>>1?2*cbuf+1:_max_size+1;
   buf=_ogg_realloc(buf,sizeof(*buf)*cbuf);
   if(OP_UNLIKELY(buf==NULL))return OP_EFAULT;
   _sb->buf=buf;
@@ -1063,6 +1068,9 @@ static int op_http_conn_estimate_available(OpusHTTPConn *_conn){
 }
 
 static void op_time_get(op_time *now){
+#ifdef _WIN32
+  *now = GetTickCount();
+#else
 # ifdef OP_HAVE_CLOCK_GETTIME
   /*Prefer a monotonic clock that continues to increment during suspend.*/
 #  ifdef CLOCK_BOOTTIME
@@ -1075,9 +1083,14 @@ static void op_time_get(op_time *now){
 # else
   ftime(now);
 # endif
+#endif
 }
 
 static opus_int32 op_time_diff_ms(const op_time *_end, const op_time *_start){
+#ifdef _WIN32
+  /* We are using GetTickCount() */
+  return *_end - *_start;
+#else
 # ifdef OP_HAVE_CLOCK_GETTIME
   opus_int64 dtime;
   dtime=_end->tv_sec-(opus_int64)_start->tv_sec;
@@ -1095,6 +1108,7 @@ static opus_int32 op_time_diff_ms(const op_time *_end, const op_time *_start){
   if(OP_UNLIKELY(dtime<(OP_INT32_MIN+1000)/1000))return OP_INT32_MIN;
   return (opus_int32)dtime*1000+_end->millitm-_start->millitm;
 # endif
+#endif
 }
 
 /*Update the read rate estimate for this connection.*/
@@ -1109,7 +1123,7 @@ static void op_http_conn_read_rate_update(OpusHTTPConn *_conn){
   read_delta_ms=op_time_diff_ms(&read_time,&_conn->read_time);
   read_rate=_conn->read_rate;
   read_delta_ms=OP_MAX(read_delta_ms,1);
-  read_rate+=read_delta_bytes*1000/read_delta_ms-read_rate+4>>3;
+  read_rate+=(read_delta_bytes*1000/read_delta_ms-read_rate+4)>>3;
   _conn->read_time=read_time;
   _conn->read_bytes=0;
   _conn->read_rate=read_rate;
@@ -1423,7 +1437,7 @@ static int op_http_get_next_header(char **_header,char **_cdr,char **_s){
   size_t  d;
   next=*_s;
   /*The second case is for broken servers.*/
-  if(next[0]=='\r'&&next[1]=='\n'||OP_UNLIKELY(next[0]=='\n')){
+  if((next[0]=='\r'&&next[1]=='\n') || OP_UNLIKELY(next[0]=='\n')){
     /*No more headers.*/
     *_header=NULL;
     *_cdr=NULL;
@@ -2979,7 +2993,7 @@ static int op_http_conn_open_pos(OpusHTTPStream *_stream,
     Update the connection time estimate.*/
   connect_time=op_time_diff_ms(&end_time,&start_time);
   connect_rate=_stream->connect_rate;
-  connect_rate+=OP_MAX(connect_time,1)-connect_rate+8>>4;
+  connect_rate+=(OP_MAX(connect_time,1)-connect_rate+8)>>4;
   _stream->connect_rate=connect_rate;
   return 0;
 }
@@ -3358,8 +3372,8 @@ static int op_http_stream_seek(void *_stream,opus_int64 _offset,int _whence){
     /*Can we quickly read ahead without issuing a new request?*/
     just_read_ahead=conn_pos<=pos&&pos-conn_pos-available<=read_ahead_thresh
      &&(end_pos<0||pos<end_pos);
-    if(just_read_ahead||pipeline&&end_pos>=0
-     &&end_pos-conn_pos-available<=read_ahead_thresh){
+    if(just_read_ahead|| (pipeline && end_pos>=0
+     && end_pos-conn_pos-available <= read_ahead_thresh) ){
       /*Found a suitable connection to re-use.*/
       ret=op_http_conn_read_ahead(stream,conn,just_read_ahead,pos);
       if(OP_UNLIKELY(ret<0)){
