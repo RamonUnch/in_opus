@@ -10,7 +10,11 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
-#include <ws2tcpip.h>
+#include <windows.h>
+
+#ifdef _MSC_VER
+#define WINBOOL BOOL
+#endif
 
 #define _WSPIAPI_STRCPY_S(_Dst,_Size,_Src) strcpy((_Dst),(_Src))
 #define _WSPIAPI_STRCAT_S(_Dst,_Size,_Src) strcat((_Dst),(_Src))
@@ -29,9 +33,90 @@ template <typename __CountofType,size_t __wspiapi_countof_helper_N> char (&__wsp
 #define WspiapiMalloc(tSize) calloc(1,(tSize))
 #define WspiapiFree(p) free(p)
 #define WspiapiSwap(a,b,c) { (c) = (a); (a) = (b); (b) = (c); }
-#define getaddrinfo WspiapiGetAddrInfo
-#define getnameinfo WspiapiGetNameInfo
-#define freeaddrinfo WspiapiFreeAddrInfo
+#define getaddrinfo WspiapiLegacyGetAddrInfo
+#define getnameinfo WspiapiLegacyGetNameInfo
+#define freeaddrinfo WspiapiLegacyFreeAddrInfo
+
+#ifndef WSA_NOT_ENOUGH_MEMORY
+#define WSA_NOT_ENOUGH_MEMORY 8
+#endif
+
+#ifndef WSATYPE_NOT_FOUND
+#define WSATYPE_NOT_FOUND 10109
+#endif
+
+#ifndef AF_INET6
+#define AF_INET6      23
+#endif
+
+#define INET6_ADDRSTRLEN 46
+
+/* getnameinfo constants */ 
+#define NI_MAXHOST	1025
+
+#define NI_NOFQDN 	0x01
+#define NI_NUMERICHOST	0x02
+#define NI_NAMEREQD	0x04
+#define NI_NUMERICSERV	0x08
+#define NI_DGRAM	0x10
+
+/* getaddrinfo constants */
+#define AI_PASSIVE	1
+#define AI_CANONNAME	2
+#define AI_NUMERICHOST	4
+
+/* getaddrinfo error codes */
+#define EAI_AGAIN	WSATRY_AGAIN
+#define EAI_BADFLAGS	WSAEINVAL
+#define EAI_FAIL	WSANO_RECOVERY
+#define EAI_FAMILY	WSAEAFNOSUPPORT
+#define EAI_MEMORY	WSA_NOT_ENOUGH_MEMORY
+#define EAI_NODATA	WSANO_DATA
+#define EAI_NONAME	WSAHOST_NOT_FOUND
+#define EAI_SERVICE	WSATYPE_NOT_FOUND
+#define EAI_SOCKTYPE	WSAESOCKTNOSUPPORT
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef int socklen_t;
+
+struct addrinfo {
+	int     ai_flags;
+	int     ai_family;
+	int     ai_socktype;
+	int     ai_protocol;
+	size_t  ai_addrlen;
+	char   *ai_canonname;
+	struct sockaddr  *ai_addr;
+	struct addrinfo  *ai_next;
+};
+
+struct in6_addr {
+    union {
+        u_char	_S6_u8[16];
+        u_short	_S6_u16[8];
+        u_long	_S6_u32[4];
+        } _S6_un;
+};
+
+/* These are used in some MS code */
+#define in_addr6	in6_addr
+#define _s6_bytes	_S6_un._S6_u8
+#define _s6_words	_S6_un._S6_u16
+
+typedef struct in6_addr IN6_ADDR,  *PIN6_ADDR, *LPIN6_ADDR;
+
+struct sockaddr_in6 {
+	short sin6_family;	/* AF_INET6 */
+	u_short sin6_port; 	/* transport layer port # */
+	u_long sin6_flowinfo;	/* IPv6 traffic class & flow info */
+	struct in6_addr sin6_addr;  /* IPv6 address */
+	u_long sin6_scope_id;	/* set of interfaces for a scope */
+};
+#ifdef __cplusplus
+}
+#endif
 
 typedef int (WINAPI *WSPIAPI_PGETADDRINFO)(const char *nodename,const char *servname,const struct addrinfo *hints,struct addrinfo **res);
 typedef int (WINAPI *WSPIAPI_PGETNAMEINFO)(const struct sockaddr *sa,socklen_t salen,char *host,size_t hostlen,char *serv,size_t servlen,int flags);
@@ -63,138 +148,33 @@ extern "C" {
   int WINAPI WspiapiGetNameInfo (const struct sockaddr *sa,socklen_t salen,char *host,size_t hostlen,char *serv,size_t servlen,int flags);
   void WINAPI WspiapiFreeAddrInfo (struct addrinfo *ai);
 
-#ifndef __CRT__NO_INLINE
-  __CRT_INLINE char * WINAPI
-  WspiapiStrdup (const char *pszString)
-  {
-    char *rstr;
-    size_t szlen;
-
-    if(!pszString)
-      return NULL;
-    szlen = strlen(pszString) + 1;
-    rstr = (char *) WspiapiMalloc (szlen);
-    if (!rstr)
-      return NULL;
-    strcpy (rstr, pszString);
-    return rstr;
-  }
-
-  __CRT_INLINE WINBOOL WINAPI
-  WspiapiParseV4Address (const char *pszAddress, PDWORD pdwAddress)
-  {
-    DWORD dwAddress = 0;
-    const char *h = NULL;
-    int cnt;
-
-    for (cnt = 0,h = pszAddress; *h != 0; h++)
-      if (h[0] == '.')
-	cnt++;
-    if (cnt != 3)
-      return FALSE;
-    dwAddress = inet_addr (pszAddress);
-    if (dwAddress == INADDR_NONE)
-      return FALSE;
-    *pdwAddress = dwAddress;
-    return TRUE;
-  }
-
-  __CRT_INLINE struct addrinfo * WINAPI
-  WspiapiNewAddrInfo (int iSocketType,int iProtocol, WORD wPort,DWORD dwAddress)
-  {
-    struct addrinfo *n;
-    struct sockaddr_in *pa;
-
-    if ((n = (struct addrinfo *) WspiapiMalloc (sizeof (struct addrinfo))) == NULL)
-      return NULL;
-    if ((pa = (struct sockaddr_in *) WspiapiMalloc (sizeof(struct sockaddr_in))) == NULL)
-      {
-	WspiapiFree(n);
-	return NULL;
-      }
-    pa->sin_family = AF_INET;
-    pa->sin_port = wPort;
-    pa->sin_addr.s_addr = dwAddress;
-    n->ai_family = PF_INET;
-    n->ai_socktype = iSocketType;
-    n->ai_protocol = iProtocol;
-    n->ai_addrlen = sizeof (struct sockaddr_in);
-    n->ai_addr = (struct sockaddr *) pa;
-    return n;
-  }
-
-  __CRT_INLINE int WINAPI
-  WspiapiLookupNode (const char *pszNodeName, int iSocketType, int iProtocol, WORD wPort,
-		     WINBOOL bAI_CANONNAME, struct addrinfo **pptResult)
-  {
-    int err = 0, cntAlias = 0;
-    char name[NI_MAXHOST] = "";
-    char alias[NI_MAXHOST] = "";
-    char *pname = name, *palias = alias, *tmp = NULL;
-
-    strncpy (pname, pszNodeName, NI_MAXHOST - 1);
-    pname[NI_MAXHOST - 1] = 0;
-    for (;;)
-      {
-	err = WspiapiQueryDNS (pszNodeName, iSocketType, iProtocol, wPort, palias, pptResult);
-	if (err)
-	  break;
-	if (*pptResult)
-	  break;
-	++cntAlias;
-	if (strlen (palias) == 0 || !strcmp (pname, palias) || cntAlias == 16)
-	  {
-	    err = EAI_FAIL;
-	    break;
-	  }
-	WspiapiSwap(pname, palias, tmp);
-      }
-    if (!err && bAI_CANONNAME)
-      {
-        (*pptResult)->ai_canonname = WspiapiStrdup (palias);
-        if (!(*pptResult)->ai_canonname)
-	  err = EAI_MEMORY;
-      }
-    return err;
-  }
-
-  __CRT_INLINE int WINAPI
-  WspiapiClone (WORD wPort,struct addrinfo *ptResult)
-  {
-    struct addrinfo *p = NULL;
-    struct addrinfo *n = NULL;
-
-    for (p = ptResult; p != NULL;)
-      {
-	n = WspiapiNewAddrInfo (SOCK_DGRAM, p->ai_protocol, wPort,
-				((struct sockaddr_in *) p->ai_addr)->sin_addr.s_addr);
-	if (!n)
-	  break;
-	n->ai_next = p->ai_next;
-	p->ai_next = n;
-	p = n->ai_next;
-      }
-    if (p != NULL)
-      return EAI_MEMORY;
-    return 0;
-  }
-
-  __CRT_INLINE void WINAPI
-  WspiapiLegacyFreeAddrInfo (struct addrinfo *ptHead)
-  {
-    struct addrinfo *p;
-
-    for (p = ptHead; p != NULL; p = ptHead)
-      {
-	if (p->ai_canonname)
-	  WspiapiFree (p->ai_canonname);
-	if (p->ai_addr)
-	  WspiapiFree (p->ai_addr);
-	ptHead = p->ai_next;
-	WspiapiFree (p);
-      }
-  }
-#endif /* !__CRT__NO_INLINE */
+static __inline char*
+gai_strerrorA(int ecode)
+{
+	static char message[1024+1];
+	DWORD dwFlags = FORMAT_MESSAGE_FROM_SYSTEM
+	              | FORMAT_MESSAGE_IGNORE_INSERTS
+		      | FORMAT_MESSAGE_MAX_WIDTH_MASK;
+	DWORD dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+  	FormatMessageA(dwFlags, NULL, ecode, dwLanguageId, (LPSTR)message, 1024, NULL);
+	return message;
+}
+static __inline WCHAR*
+gai_strerrorW(int ecode)
+{
+	static WCHAR message[1024+1];
+	DWORD dwFlags = FORMAT_MESSAGE_FROM_SYSTEM
+	              | FORMAT_MESSAGE_IGNORE_INSERTS
+		      | FORMAT_MESSAGE_MAX_WIDTH_MASK;
+	DWORD dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+  	FormatMessageW(dwFlags, NULL, ecode, dwLanguageId, (LPWSTR)message, 1024, NULL);
+	return message;
+}
+#ifdef UNICODE
+#define gai_strerror gai_strerrorW
+#else
+#define gai_strerror gai_strerrorA
+#endif
 
 #ifdef __cplusplus
 }

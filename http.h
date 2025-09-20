@@ -14,6 +14,17 @@
 #include <stdlib.h>
 #include <opusfile.h>
 
+# if OP_GNUC_PREREQ(3,0)
+/*Another alternative is
+    (__builtin_constant_p(_x)?!!(_x):__builtin_expect(!!(_x),1))
+   but that evaluates _x multiple times, which may be bad.*/
+#  define OP_LIKELY(_x) (__builtin_expect(!!(_x),1))
+#  define OP_UNLIKELY(_x) (__builtin_expect(!!(_x),0))
+# else
+#  define OP_LIKELY(_x)   (!!(_x))
+#  define OP_UNLIKELY(_x) (!!(_x))
+# endif
+
 #define OP_FATAL(_str) abort()
 #define OP_ASSERT(_cond)
 #define OP_ALWAYS_TRUE(_cond) ((void)(_cond))

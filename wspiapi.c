@@ -3,7 +3,7 @@
 #endif
 #undef  __CRT__NO_INLINE
 #define __CRT__NO_INLINE
-#include <winsock2.h>
+#include <winsock.h>
 #include "wspiapi.h"
 
 int WINAPI WspiapiQueryDNS(const char *pszNodeName, int iSocketType, int iProtocol,
@@ -204,6 +204,12 @@ int WINAPI WspiapiLegacyGetAddrInfo(const char *pszNodeName,
               svc = getservbyname(pszServiceName, "tcp");
               if (svc)
                 port = tcpPort = svc->s_port;
+              else {
+                if(_stricmp(pszServiceName,"https")==0)
+                  port = tcpPort = 443;
+                else if(_stricmp(pszServiceName,"http")==0)
+                  port = tcpPort = 80;
+              }
           }
           if (port == 0)
             return (iSocketType ? EAI_SERVICE : EAI_NONAME);
@@ -240,4 +246,99 @@ int WINAPI WspiapiLegacyGetAddrInfo(const char *pszNodeName,
         *pptResult = NULL;
   }
   return err;
+}
+
+int WINAPI WspiapiLegacyGetNameInfo(const struct sockaddr *ptSocketAddress,
+  socklen_t tSocketLength, char *pszNodeName, size_t tNodeLength,
+  char *pszServiceName, size_t tServiceLength, int iFlags)
+{
+  struct servent *ptService;
+  WORD wPort;
+  char szBuffer[] = "65535";
+  char *pszService = szBuffer;
+  struct hostent *ptHost;
+  struct in_addr tAddress;
+  char *pszNode = NULL;
+  char *pc = NULL;
+ 
+  if ((!ptSocketAddress) || (tSocketLength < (int)sizeof(struct sockaddr))) return EAI_FAIL;
+  if (ptSocketAddress->sa_family != AF_INET) return EAI_FAMILY;
+  if (tSocketLength < (int)sizeof(struct sockaddr_in)) return EAI_FAIL;
+  if (!(pszNodeName && tNodeLength) && !(pszServiceName && tServiceLength)) {
+    return EAI_NONAME;
+  }
+  if ((iFlags & NI_NUMERICHOST) && (iFlags & NI_NAMEREQD)) {
+    return EAI_BADFLAGS;
+  }
+  if (pszServiceName && tServiceLength) {
+    wPort = ((struct sockaddr_in *) ptSocketAddress)->sin_port;
+    if (iFlags & NI_NUMERICSERV) {
+      _WSPIAPI_SPRINTF_S_1(szBuffer, _WSPIAPI_COUNTOF(szBuffer), "%u", ntohs(wPort));
+    }
+    else {
+      ptService = getservbyport(wPort, (iFlags & NI_DGRAM) ? "udp" : NULL);
+      if (ptService && ptService->s_name) {
+        pszService = ptService->s_name;
+      }
+      else {
+        _WSPIAPI_SPRINTF_S_1(szBuffer, _WSPIAPI_COUNTOF(szBuffer), "%u", ntohs(wPort));
+      }
+    }
+    if (tServiceLength > strlen(pszService))
+      _WSPIAPI_STRCPY_S(pszServiceName, tServiceLength, pszService);
+    else return EAI_FAIL;
+  }
+  if (pszNodeName && tNodeLength) {
+    tAddress = ((struct sockaddr_in *) ptSocketAddress)->sin_addr;
+    if (iFlags & NI_NUMERICHOST) {
+      pszNode = inet_ntoa(tAddress);
+    }
+    else {
+      ptHost = gethostbyaddr((char *) &tAddress, sizeof(struct in_addr), AF_INET);
+      if (ptHost && ptHost->h_name) {
+        pszNode = ptHost->h_name;
+        if ((iFlags & NI_NOFQDN) && ((pc = strchr(pszNode, '.')) != NULL)) *pc = '\0';
+      }
+      else {
+        if (iFlags & NI_NAMEREQD) {
+          switch (WSAGetLastError()) {
+            case WSAHOST_NOT_FOUND: return EAI_NONAME;
+            case WSATRY_AGAIN: return EAI_AGAIN;
+            case WSANO_RECOVERY: return EAI_FAIL;
+            default: return EAI_NONAME;
+          }
+        }
+        else pszNode = inet_ntoa(tAddress);
+      }
+    }
+    if (tNodeLength > strlen(pszNode)) _WSPIAPI_STRCPY_S(pszNodeName, tNodeLength, pszNode);
+    else return EAI_FAIL;
+  }
+ 
+  return 0;
+}
+
+char *inet_ntop(int af, const void *src, char *dst, size_t cnt)
+{
+	if (af == AF_INET)
+	{
+		struct sockaddr_in in;
+		memset(&in, 0, sizeof(in));
+		in.sin_family = AF_INET;
+		memcpy(&in.sin_addr, src, sizeof(struct in_addr));
+		getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in), 
+					dst, cnt, NULL, 0, NI_NUMERICHOST);
+		return dst;
+	}
+	else if (af == AF_INET6)
+	{
+		struct sockaddr_in6 in;
+		memset(&in, 0, sizeof(in));
+		in.sin6_family = AF_INET6;
+		memcpy(&in.sin6_addr, src, sizeof(struct in_addr6));
+		getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in6), 
+					dst, cnt, NULL, 0, NI_NUMERICHOST);
+		return dst;
+	}
+	return NULL;
 }
