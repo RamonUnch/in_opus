@@ -9,6 +9,7 @@ const char *TranslateOpusErr(int err);
 char isURL(const char *const fn);
 char isRGavailable(const OggOpusFile *_of);
 const char *lstrcpy_sA(char *__restrict__ dest, size_t N, const char *src);
+const wchar_t *lstrcpy_sW(wchar_t *__restrict__ dest, size_t N, const wchar_t *src);
 char *ffilestart(const char *str);
 int isourfile(const char *const fn);
 

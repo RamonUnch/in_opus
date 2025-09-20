@@ -37,7 +37,7 @@ __cdecl char *strncpy(char *dest, const char *src, size_t N)
     *dest='\0'; /* ensure result is NULL terminated */
     return orig;
 }
-static const wchar_t *lstrcpy_sW(wchar_t *__restrict__ dest, size_t N, const wchar_t *src)
+const wchar_t *lstrcpy_sW(wchar_t *__restrict__ dest, size_t N, const wchar_t *src)
 {
     wchar_t *orig=dest;
     wchar_t *dmax=dest+N-1; /* keep space for a terminating NULL */

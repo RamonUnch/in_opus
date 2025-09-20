@@ -796,11 +796,11 @@ static void internal_getfileinfoA(char *fn, char *title, int *length_in_ms)
         const char *ttl = GetTTitleA(fn, buf);
 
         if(err && !is_fn_url && !UNICODE_FILE)
-            sprintf(title,"[in_opus err %d %s] %s",err,TranslateOpusErr(err), ttl);
+            wsprintfA(title,"[in_opus err %d %.220s] %.220s",err,TranslateOpusErr(err), ttl);
         else if(hours_mode_on)
-            sprintf(title,"%s [h:min]", ttl);
+            wsprintfA(title,"%.500 [h:min]", ttl);
         else
-            strcpy(title, ttl);
+            lstrcpy_sA(title, 512, ttl);
     }
     op_free(_tmp);
 }
@@ -840,9 +840,9 @@ static void internal_getfileinfoW(const char* fn, wchar_t *title, int *length_in
         p++;
         wchar_t *tmpW = utf8_to_utf16(p);
 
-        if(err && !is_fn_url)  wsprintfW(title, L"[in_opus err %d %hs] %s", err, TranslateOpusErr(err), tmpW);
-        else if (hours_mode_on) wsprintfW(title, L"%s [h:min]", tmpW);
-        else wcscpy(title, tmpW);
+        if(err && !is_fn_url)  wsprintfW(title, L"[in_opus err %d %.220hs] %.220s", err, TranslateOpusErr(err), tmpW);
+        else if (hours_mode_on) wsprintfW(title, L"%.500s [h:min]", tmpW);
+        else lstrcpy_sW(title, 512, tmpW);
 
         free(tmpW);
     }
