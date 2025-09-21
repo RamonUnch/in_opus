@@ -92,7 +92,7 @@ void config(HWND hwndParent)
 {
     int font_height;
     char monstring[1024];
-    char font_str[256];
+    char font_str[LF_FACESIZE];
 
     // To read the config so we show up to date data
     // This also makes a way not to restart winamp...
@@ -144,10 +144,10 @@ void about(HWND hwndParent)
 // To read the internal config
 static void readinternalconfig(char *font_str, int *font_height)
 {
-    float pre_gain_float, radio_gain_float;
-    int UNICODE_FILE_i, RESAMPLE_Q_i, USE_REPLAY_GAIN_i, INTERNAL_VOLUME_i
-       , TAGS_DISPLAY_MODE_i, USE_DITHERING_i, TARGET_LUFS_i, bps_i
-       , OGGEXT_HACK_i, UNIFIED_DIALOG_i, INSTANT_BR_i, FORMAT_TITLE_i;
+    float pre_gain_float=0.0f, radio_gain_float=0.0f;
+    int UNICODE_FILE_i=0, RESAMPLE_Q_i=0, USE_REPLAY_GAIN_i=0, INTERNAL_VOLUME_i=0
+       , TAGS_DISPLAY_MODE_i=0, USE_DITHERING_i=0, TARGET_LUFS_i=0, bps_i=0
+       , OGGEXT_HACK_i=0, UNIFIED_DIALOG_i=0, INSTANT_BR_i=0, FORMAT_TITLE_i=0;
 
     THREAD_PRIORITY = THREAD_PRIORITY_ABOVE_NORMAL;
 
@@ -257,18 +257,20 @@ void applyglobal_unicode_fn(char *ini_name, int ininamelength, char *rez)
 
         p = ini_name + ininamelength;
         while (p >= ini_name && *p != '\\' && *p != '/') p--;
-        strcpy(++p, "wacup.exe");
+        ++p;
+        size_t remaining = ini_name + ininamelength - p;
+        lstrcpy_sA(p, remaining, "wacup.exe");
         if(INVALID_FILE_ATTRIBUTES != GetFileAttributes(ini_name)){
             if(VERBOSE)MessageBox(mod.hMainWindow,"You are using WACUP dude!","in_opus",MB_OK);
             return;
         }
-        strcpy(p, "MediaMonkey.exe");
+        lstrcpy_sA(p, remaining, "MediaMonkey.exe");
         if(INVALID_FILE_ATTRIBUTES != GetFileAttributes(ini_name)){
             if(VERBOSE)MessageBox(mod.hMainWindow,"You are using WACUP dude!","in_opus",MB_OK);
             UNICODE_FILE=3; // WE ARE USING MEDIA MONKEY
             return;
         }
-        strcpy(p, "whatsnew.txt");
+        lstrcpy_sA(p, remaining, "whatsnew.txt");
         // NOW ini_name contains the path towards "whatsnew.txt"
         if(INVALID_FILE_ATTRIBUTES != GetFileAttributes(ini_name))
             Whatsnew=fopen(ini_name, "r");
@@ -302,9 +304,10 @@ void applyglobal_unicode_fn(char *ini_name, int ininamelength, char *rez)
 void init()
 {
     HOURS_MODE_ON=0;
-    char ini_name[MAX_PATH] = {0}, rez[256], font_str[256];
+    char ini_name[MAX_PATH], rez[256], font_str[LF_FACESIZE];
     int font_height=0;
     int winamp_version;
+    ini_name[0] = rez[0] = font_str[0] = '\0';
 
     VIS_BROKEN=1;
     winamp_version = SendMessage(mod.hMainWindow, WM_WA_IPC, 0, IPC_GETVERSION);
@@ -344,17 +347,19 @@ static void first_init(char *Fstr, int *Fnth)
     char ini_name[MAX_PATH], rez[MAX_PATH], font_str[MAX_PATH];
     int ininamelength;
     char *p;
+    ini_name[0] = rez[0] = font_str[0] = '\0';
 
     isNT = !(GetVersion() & 0x80000000); /* To Use Unicode stuff on NT */
 
     readinternalconfig(font_str, &font_height);
 
     //// Find in_opus.ini in plugin folder ////
-    GetModuleFileName(NULL, ini_name, sizeof(ini_name));
+    GetModuleFileName(NULL, ini_name, countof(ini_name));
     ininamelength = strlen(ini_name);
     p = ffilestart(ini_name);
     if (!p) p = ini_name;
-    strcpy(p, "\\Plugins\\in_opus.ini");
+    *p = '\0';
+    lstrcat_sA(p, countof(ini_name), "\\Plugins\\in_opus.ini");
     if(VERBOSE)MessageBox(NULL, ini_name,"in_opus: in_opus.ini path",MB_OK);
 
     readconfig(ini_name, rez, font_str, &font_height); //in_opus.ini
@@ -373,11 +378,11 @@ static void first_init(char *Fstr, int *Fnth)
 
     applyglobal_unicode_fn(ini_name, ininamelength, rez);
     if (Fstr && Fnth) {
-        if(font_height!=0) lstrcpy(Fstr,  font_str);
-        else strcpy(Fstr, "(Not user set)");
+        if(font_height!=0) lstrcpy_sA(Fstr, LF_FACESIZE,  font_str);
+        else lstrcpy_sA(Fstr, LF_FACESIZE, "(Not user set)");
         *Fnth=font_height;
     } else {
-        strcpy(lastfn, ini_name);
+        lstrcpy_sA(lastfn, countof(lastfn), ini_name);
     }
 } // END OF INIT
 /////////////////////////////////////////////////////////////////////////////
@@ -513,8 +518,8 @@ void TryResolvePath(char *fn)
 
     // We must look for files in the form "x:\path\to\file\*.ext"
     lastbsW[1] = '\0'; // Null terminate the path after the backslash
-    wcscat(wfnsearch, L"*");
-    wcscat(wfnsearch, extW);
+    lstrcat_sW(wfnsearch, countof(wfnsearch), L"*");
+    lstrcat_sW(wfnsearch, countof(wfnsearch), extW);
     // here wfnsearch is in the x:\path\to\file\*.ext form.
 
     unsigned matches=0;
@@ -769,9 +774,8 @@ static const char *GetTTitleA(const char *fn, char *buf)
     const char *ttl=p;
     if (buf && FORMAT_TITLE) {
         if( winampGetExtendedFileInfo(fn, "Artist", buf, MAX_PATH/3)
-        && strcat(buf, " - ") && winampGetExtendedFileInfo(fn, "Title", &buf[strlen(buf)], MAX_PATH/3)) {
+        &&  winampGetExtendedFileInfo(fn, "Title", lstrcat_sA(buf, MAX_PATH, " - "), MAX_PATH/3) )
             ttl = buf;
-        }
     }
     if (!strcmp(ttl, " - ")) ttl = p;
 
@@ -1153,12 +1157,12 @@ long __cdecl lrintf(float x)
 }
 #endif
 
-void *__cdecl malloc(size_t sz) { return HeapAlloc(GetProcessHeap(), 0, sz); }
-void *__cdecl calloc(size_t n, size_t sz) { return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, n*sz); }
-void __cdecl free(void *x) { HeapFree(GetProcessHeap(), 0, x); }
-void * __cdecl realloc(void *x, size_t sz)
-{
-    if(!sz) { if(x)HeapFree(GetProcessHeap(), 0, x); return NULL; }
-    if(!x) return HeapAlloc(GetProcessHeap(), 0, sz);
-    return HeapReAlloc(GetProcessHeap(), 0, x, sz);
-}
+//void *__cdecl malloc(size_t sz) { return HeapAlloc(GetProcessHeap(), 0, sz); }
+//void *__cdecl calloc(size_t n, size_t sz) { return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, n*sz); }
+//void __cdecl free(void *x) { HeapFree(GetProcessHeap(), 0, x); }
+//void * __cdecl realloc(void *x, size_t sz)
+//{
+//    if(!sz) { if(x)HeapFree(GetProcessHeap(), 0, x); return NULL; }
+//    if(!x) return HeapAlloc(GetProcessHeap(), 0, sz);
+//    return HeapReAlloc(GetProcessHeap(), 0, x, sz);
+//}

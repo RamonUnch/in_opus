@@ -1,8 +1,7 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-#undef  __CRT__NO_INLINE
-#define __CRT__NO_INLINE
+
 #include <winsock.h>
 #include "wspiapi.h"
 
@@ -26,8 +25,7 @@ int WINAPI WspiapiQueryDNS(const char *pszNodeName, int iSocketType, int iProtoc
                 paddrinfo = &((*paddrinfo)->ai_next);
             }
       }
-      strncpy (pszAlias, phost->h_name, NI_MAXHOST - 1);
-      pszAlias[NI_MAXHOST - 1] = 0;
+      _WSPIAPI_STRCPY_S(pszAlias, NI_MAXHOST, phost->h_name);
       return 0;
   }
   switch(WSAGetLastError()) {
@@ -78,12 +76,11 @@ int WINAPI WspiapiLookupNode (const char *pszNodeName,
                    struct addrinfo **pptResult)
 {
   int err = 0, cntAlias = 0;
-  char name[NI_MAXHOST] = "";
-  char alias[NI_MAXHOST] = "";
+  char name[NI_MAXHOST]; name[0] = '\0';
+  char alias[NI_MAXHOST]; alias[0] = '\0';
   char *pname = name, *palias = alias, *tmp = NULL;
 
-  strncpy (pname, pszNodeName, NI_MAXHOST - 1);
-  pname[NI_MAXHOST - 1] = 0;
+  _WSPIAPI_STRCPY_S(pname, NI_MAXHOST, pszNodeName);
   for (;;){
       err = WspiapiQueryDNS (pszNodeName, iSocketType, iProtocol, wPort, palias, pptResult);
       if (err) break;
@@ -150,7 +147,7 @@ WINBOOL WINAPI WspiapiParseV4Address (const char *pszAddress, PDWORD pdwAddress)
   dwAddress = inet_addr (pszAddress);
   if (dwAddress == INADDR_NONE) return FALSE;
   *pdwAddress = dwAddress;
-  
+
   return TRUE;
 }
 
@@ -260,7 +257,7 @@ int WINAPI WspiapiLegacyGetNameInfo(const struct sockaddr *ptSocketAddress,
   struct in_addr tAddress;
   char *pszNode = NULL;
   char *pc = NULL;
- 
+
   if ((!ptSocketAddress) || (tSocketLength < (int)sizeof(struct sockaddr))) return EAI_FAIL;
   if (ptSocketAddress->sa_family != AF_INET) return EAI_FAMILY;
   if (tSocketLength < (int)sizeof(struct sockaddr_in)) return EAI_FAIL;
@@ -314,7 +311,7 @@ int WINAPI WspiapiLegacyGetNameInfo(const struct sockaddr *ptSocketAddress,
     if (tNodeLength > strlen(pszNode)) _WSPIAPI_STRCPY_S(pszNodeName, tNodeLength, pszNode);
     else return EAI_FAIL;
   }
- 
+
   return 0;
 }
 
@@ -326,7 +323,7 @@ char *inet_ntop(int af, const void *src, char *dst, size_t cnt)
 		memset(&in, 0, sizeof(in));
 		in.sin_family = AF_INET;
 		memcpy(&in.sin_addr, src, sizeof(struct in_addr));
-		getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in), 
+		getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in),
 					dst, cnt, NULL, 0, NI_NUMERICHOST);
 		return dst;
 	}
@@ -336,7 +333,7 @@ char *inet_ntop(int af, const void *src, char *dst, size_t cnt)
 		memset(&in, 0, sizeof(in));
 		in.sin6_family = AF_INET6;
 		memcpy(&in.sin6_addr, src, sizeof(struct in_addr6));
-		getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in6), 
+		getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in6),
 					dst, cnt, NULL, 0, NI_NUMERICHOST);
 		return dst;
 	}
