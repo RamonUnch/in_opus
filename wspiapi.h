@@ -16,9 +16,11 @@
 #define WINBOOL BOOL
 #endif
 
-#define _WSPIAPI_STRCPY_S(_Dst,_Size,_Src) strcpy((_Dst),(_Src))
-#define _WSPIAPI_STRCAT_S(_Dst,_Size,_Src) strcat((_Dst),(_Src))
-#define _WSPIAPI_STRNCPY_S(_Dst,_Size,_Src,_Count) strncpy((_Dst),(_Src),(_Count)); (_Dst)[(_Size) - 1] = 0
+void lstrcpy_sA(char *dst, size_t dstlen, const char *src);
+
+#define _WSPIAPI_STRCPY_S(_Dst,_Size,_Src) lstrcpy_sA((_Dst), (_Size),(_Src))
+//#define _WSPIAPI_STRCAT_S(_Dst,_Size,_Src) strcat((_Dst),(_Src))
+//#define _WSPIAPI_STRNCPY_S(_Dst,_Size,_Src,_Count) strncpy((_Dst),(_Src),(_Count)); (_Dst)[(_Size) - 1] = 0
 #define _WSPIAPI_SPRINTF_S_1(_Dst,_Size,_Format,_Arg1) sprintf((_Dst),(_Format),(_Arg1))
 
 #ifndef _WSPIAPI_COUNTOF
@@ -51,7 +53,7 @@ template <typename __CountofType,size_t __wspiapi_countof_helper_N> char (&__wsp
 
 #define INET6_ADDRSTRLEN 46
 
-/* getnameinfo constants */ 
+/* getnameinfo constants */
 #define NI_MAXHOST	1025
 
 #define NI_NOFQDN 	0x01

@@ -21,48 +21,47 @@ extern char UNIFIED_DIALOG;
 /***************************************
  *  SHARED HELPERS                     *
  ***************************************/
-const char *lstrcpy_sA(char *__restrict__ dest, size_t N, const char *src)
+void lstrcpy_sA(char *__restrict__ dest, size_t N, const char *src)
 {
-    char *orig=dest;
     char *dmax=dest+N-1; /* keep space for a terminating NULL */
     for (; dest<dmax && (*dest=*src); ++src,++dest);  /* then append from src */
     *dest='\0'; /* ensure result is NULL terminated */
-    return orig;
 }
-__cdecl char *strncpy(char *dest, const char *src, size_t N)
+
+void lstrcpy_sW(wchar_t *__restrict__ dest, size_t N, const wchar_t *src)
 {
-    char *orig=dest;
-    char *dmax=dest+N-1; /* keep space for a terminating NULL */
-    for (; dest<dmax && (*dest=*src); ++src,++dest);  /* then append from src */
-    *dest='\0'; /* ensure result is NULL terminated */
-    return orig;
-}
-const wchar_t *lstrcpy_sW(wchar_t *__restrict__ dest, size_t N, const wchar_t *src)
-{
-    wchar_t *orig=dest;
     wchar_t *dmax=dest+N-1; /* keep space for a terminating NULL */
     for (; dest<dmax && (*dest=*src); ++src,++dest);  /* then append from src */
     *dest='\0'; /* ensure result is NULL terminated */
-    return orig;
+}
+
+char *lstrcat_sA(char *__restrict__ d, const size_t N, const char *__restrict__ s)
+{
+    const char *dmax = d + N - 1; /* keep space for a terminating NULL */
+    for (; d<dmax &&  *d ; ++d);             /* go to end of dest */
+    for (; d<dmax && (*d=*s); ++d,++s);  /* then append from src */
+    *d = '\0'; /* ensure result is NULL terminated */
+    return d;
+}
+
+wchar_t *lstrcat_sW(wchar_t *__restrict__ d, const size_t N, const wchar_t *__restrict__ s)
+{
+    const wchar_t *dmax = d + N - 1; /* keep space for a terminating NULL */
+    for (; d<dmax &&  *d ; ++d);             /* go to end of dest */
+    for (; d<dmax && (*d=*s); ++s,++d);  /* then append from src */
+    *d = '\0'; /* ensure result is NULL terminated */
+    return d;
 }
 
 static int has_opus_ext(const char *p)
 {
     p+=strlen(p); p-=4;
-    if(!_strnicmp(p, ".opu", 4) || !_strnicmp(--p, ".opus", 5)) {
-        return 1;
-    } else {
-        return 0;
-    }
+    return !_strnicmp(p, ".opu", 4) || !_strnicmp(--p, ".opus", 5);
 }
 static int has_opus_extW(const wchar_t *p)
 {
     p+=wcslen(p); p = &p[-4];
-    if(!_wcsnicmp(p, L".opu", 4) || !_wcsnicmp(--p, L".opus", 5)) {
-        return 1;
-    } else {
-        return 0;
-    }
+    return !_wcsnicmp(p, L".opu", 4) || !_wcsnicmp(--p, L".opus", 5);
 }
 
 char isURL(const char *const fn)
