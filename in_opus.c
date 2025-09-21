@@ -369,7 +369,8 @@ static void first_init(char *Fstr, int *Fnth)
     ininamelength = strlen(ini_name);
     p = strrchr(ini_name, '.');
     if (!p) p = ini_name + ininamelength;
-    strcpy(p, ".ini");
+    size_t remaining = ini_name + ininamelength - p;
+    lstrcpy_sA(p, remaining, ".ini");
     if(VERBOSE)MessageBox(NULL, ini_name,"in_opus: Winamp.ini path",MB_OK);
 
     readconfig(ini_name, rez, font_str, &font_height); //winamp.ini
@@ -474,7 +475,7 @@ void TryResolvePath(char *fn)
             if (!FindNextFile(f1, &finddat2)) {
                 char *p = ffilestart(fn);
                 if (p) {
-                    strcpy(p+1, finddat.cAlternateFileName);
+                    lstrcpy_sA(p+1, fn + MAX_PATH - p - 1, finddat.cAlternateFileName);
                     return; // Sucess!
                 }
             }
@@ -547,7 +548,7 @@ void TryResolvePath(char *fn)
         if (matches == 1) {
             // If we only found a single match!
             filenameA[0] = '\0';
-            strcpy(filenameA, foundfnShortA);
+            lstrcpy_sA(filenameA, fn + MAX_PATH - filenameA , foundfnShortA);
         }
     }
 }
@@ -1157,12 +1158,12 @@ long __cdecl lrintf(float x)
 }
 #endif
 
-//void *__cdecl malloc(size_t sz) { return HeapAlloc(GetProcessHeap(), 0, sz); }
-//void *__cdecl calloc(size_t n, size_t sz) { return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, n*sz); }
-//void __cdecl free(void *x) { HeapFree(GetProcessHeap(), 0, x); }
-//void * __cdecl realloc(void *x, size_t sz)
-//{
-//    if(!sz) { if(x)HeapFree(GetProcessHeap(), 0, x); return NULL; }
-//    if(!x) return HeapAlloc(GetProcessHeap(), 0, sz);
-//    return HeapReAlloc(GetProcessHeap(), 0, x, sz);
-//}
+void *__cdecl malloc(size_t sz) { return HeapAlloc(GetProcessHeap(), 0, sz); }
+void *__cdecl calloc(size_t n, size_t sz) { return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, n*sz); }
+void __cdecl free(void *x) { HeapFree(GetProcessHeap(), 0, x); }
+void * __cdecl realloc(void *x, size_t sz)
+{
+    if(!sz) { if(x)HeapFree(GetProcessHeap(), 0, x); return NULL; }
+    if(!x) return HeapAlloc(GetProcessHeap(), 0, sz);
+    return HeapReAlloc(GetProcessHeap(), 0, x, sz);
+}
