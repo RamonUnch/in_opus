@@ -14,7 +14,7 @@ That is still used for playing music and for retro gaming at my home.
 I had to build myself the libraries because they include dependencies
 that are not present on this old OS.
 
-The plugin was tested and works fine on Windows 95/98SE/NT4/2000/XP/2003/7/8/10/11.
+The plugin was tested and works fine on Windows 95/98SE/NT4/2000/XP/2003/7.
 
 There is a very good plugin that was already written by thinktink but
 it only works for Winamp 5 and recent windows versions.
@@ -26,9 +26,9 @@ use Winamp 2 for some reasons.
 
 == THIS PROGRAM IS BASED ON ==
 
-libopus 1.3.1, * opusfile 0.12 (http://opus-codec.org/)
+libopus 1.5.2, * opusfile 0.12 (http://opus-codec.org/)
 libogg 1.3.2 (http://xiph.org/ogg/)
-Compiled using gcc from TDM-GCC-5.1, (MinGW) running on Windows Server 2003
+Compiled using gcc 13.2, (MinGW64 / winlibs.com) on Windows Server 2003
 
 == FEATURES ==
 
@@ -48,7 +48,7 @@ Compiled using gcc from TDM-GCC-5.1, (MinGW) running on Windows Server 2003
 * Output at any rate from 1-192kHz, since v0.777,
   and using 8, 16, 24 or 32 bits per samples wince v0.892.
 
-* Runs on Windows 95/98SE/NT4/2000/XP/2003/7/8/10/11, with Winamp 2.x, 5.x,
+* Runs on Windows 95/98SE/NT4/2000/XP/2003/7/8/10, with Winamp 2.x, 5.x,
   WACUP and XMPlay 2.1+. You need XMPlay3.7+ to enable UNICODE_FILE.
   Finally the plugin was tested with MediaMonkey 3.2.5 and 4.1.29
 
@@ -64,8 +64,9 @@ they may change in the future if I continue the project.
 * No way to edit tags.
 
 * UTF-8 is not really supported under Win9x; all tags are converted
-  to local codepage for display Under NT the UTF-8 strings are converted
-  to UTF-16 since 0.555.
+  to Windows-1252 for display  Thus you will not have all the Unicode
+  characters. Not a big deal if you are from a European country.
+  Under NT the UTF-8 strings are converted to UTF-16 since 0.555.
 
 * In the Winamp playlist only the filename/URL will be visible.
   Since v0.911 proper format will be shown in the PL on Winamp 5.x
