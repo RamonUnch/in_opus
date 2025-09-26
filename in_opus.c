@@ -258,7 +258,7 @@ void applyglobal_unicode_fn(char *ini_name, int ininamelength, char *rez)
         p = ini_name + ininamelength;
         while (p >= ini_name && *p != '\\' && *p != '/') p--;
         ++p;
-        size_t remaining = ini_name + ininamelength - p;
+        size_t remaining = ini_name + MAX_PATH - p;
         lstrcpy_sA(p, remaining, "wacup.exe");
         if(INVALID_FILE_ATTRIBUTES != GetFileAttributes(ini_name)){
             if(VERBOSE)MessageBox(mod.hMainWindow,"You are using WACUP dude!","in_opus",MB_OK);
@@ -369,7 +369,7 @@ static void first_init(char *Fstr, int *Fnth)
     ininamelength = strlen(ini_name);
     p = strrchr(ini_name, '.');
     if (!p) p = ini_name + ininamelength;
-    size_t remaining = ini_name + ininamelength - p;
+    size_t remaining = ini_name + countof(ini_name) - p;
     lstrcpy_sA(p, remaining, ".ini");
     if(VERBOSE)MessageBox(NULL, ini_name,"in_opus: Winamp.ini path",MB_OK);
 
