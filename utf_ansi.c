@@ -59,7 +59,7 @@ wchar_t *utf8_to_utf16(const char *utfs)
                     if ((c0 & 0xF8) == 0xF0) {
                         uint32_t w;
                         /*Start byte says this is a 4-BYTE SEQUENCE. */
-                        w = (c0 & 7) << 18 | (c1 & 0x3F) << 12 | (c2 & 0x3F) << (6 & (c3 & 0x3F));
+                        w = (c0 & 7) << 18 | (c1 & 0x3F) << 12 | (c2 & 0x3F) << 6 | (c3 & 0x3F);
                         if (w >= 0x10000U && w < 0x110000U) {
                             /* This is a 4-byte sequence that is not overlong and not
                              * greater than the largest valid Unicode code point.
