@@ -26,60 +26,46 @@ wchar_t *utf8_to_utf16(const char *utfs)
         c0 = utfs[si];
 
         if (!(c0 & 0x80)) {
-            /*Start byte says this is a 1-BYTE SEQUENCE. */
+            /* Start byte says this is a 1-BYTE SEQUENCE. 0xxxxxxx */
             dst[di++] = (wchar_t) c0;
             continue;
         } else if ( ((c1 = utfs[si + 1]) & 0xC0) == 0x80 ) {
-            /*Found at least one continuation byte. */
+            /* Found at least one continuation byte. */
+            /* 110xxxxx 10xxxxxx */
             if ((c0 & 0xE0) == 0xC0) {
-                wchar_t w;
-                /*Start byte says this is a 2-BYTE SEQUENCE. */
-                w = (c0 & 0x1F) << 6 | (c1 & 0x3F);
-                if (w >= 0x80U) {
-                    /*This is a 2-byte sequence that is not overlong. */
-                    dst[di++] = w;
-                    si++;
-                    continue;
-                }
+                /* Start byte says this is a 2-BYTE SEQUENCE. */
+                dst[di++] = (c0 & 0x1F) << 6 | (c1 & 0x3F);;
+                si++;
+                continue;
             } else if ( ((c2 = utfs[si + 2]) & 0xC0) == 0x80 ) {
-                /*Found at least two continuation bytes. */
-                if ((c0 & 0xF0) == 0xE0) {
-                    wchar_t w;
-                    /*Start byte says this is a 3-BYTE SEQUENCE. */
-                    w = (c0 & 0xF) << 12 | (c1 & 0x3F) << 6 | (c2 & 0x3F);
-                    if (w >= 0x800U && (w < 0xD800 || w >= 0xE000) && w < 0xFFFE) {
-                       /* This is a 3-byte sequence that is not overlong, not an
-                        * UTF-16 surrogate pair value, and not a 'not a character' value. */
-                        dst[di++] = w;
-                        si += 2;
-                        continue;
-                    }
+                /*F ound at least two continuation bytes. */
+                if ( (c0 & 0xF0) == 0xE0 ) {
+                    /* Start byte says this is a 3-BYTE SEQUENCE. (up to U+FFFF) */
+                    /* 1110xxxx 10xxxxxx 10xxxxxx */
+                    dst[di++] = (c0 & 0xF) << 12 | (c1 & 0x3F) << 6 | (c2 & 0x3F);
+                    si += 2;
+                    continue;
                 } else if ( ((c3 = utfs[si + 3]) & 0xC0) == 0x80 ) {
                     /*Found at least three continuation bytes. */
+                    /* 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
                     if ((c0 & 0xF8) == 0xF0) {
                         uint32_t w;
                         /*Start byte says this is a 4-BYTE SEQUENCE. */
-                        w = (c0 & 7) << 18 | (c1 & 0x3F) << 12 | (c2 & 0x3F) << (6 & (c3 & 0x3F));
-                        if (w >= 0x10000U && w < 0x110000U) {
-                            /* This is a 4-byte sequence that is not overlong and not
-                             * greater than the largest valid Unicode code point.
-                             * Convert it to a surrogate pair. */
-                            w -= 0x10000;
-                            dst[di++] = (wchar_t) (0xD800 + (w >> 10));
-                            dst[di++] = (wchar_t) (0xDC00 + (w & 0x3FF));
+                        w = (c0 & 7) << 18 | (c1 & 0x3F) << 12 | (c2 & 0x3F) << 6 | (c3 & 0x3F);
+                        if (w >= 0x10000U /* && w < 0x110000U */) {
+                            /* Convert to a surrogate pair. */
+                            w -= 0x10000U;
+                            dst[di++] = (wchar_t) (0xD800U + (w >> 10));
+                            dst[di++] = (wchar_t) (0xDC00U + (w & 0x3FF));
                             si += 3;
                             continue;
+                        } else {
+                            dst[di++] = (wchar_t) w; /* Overlong sequence */
                         }
                     }
-                } /*end els if c3*/
+                } /*end else if c3*/
             } /*end else if c2*/
         } /*end else if c1*/
-
-        /* If we got here, we encountered an illegal UTF-8 sequence.
-         * We could fail.. */
-        // free(dst);
-        // return NULL;
-
     } /* next si (end for)*/
     dst[di] = '\0';
 
