@@ -1,6 +1,6 @@
  /-------------------------------------------------------------------------\
-/              OPUS FILE DECODER PLUGIN FOR WINAMP 2+ (V0.913)              \
-|                        RELEASED SEPTEMBRE 26, 2025                        |
+/              OPUS FILE DECODER PLUGIN FOR WINAMP 2+ (V0.914)              \
+|                         RELEASED NOVEMBER 6, 2025                         |
 +- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -+
 | Author: Raymond Gillibert.                                                |
 | You can write me to the e-mail address raymond_gillibert at yahoo fr      |
@@ -223,6 +223,10 @@ FORMAT_TITLE=0 then only the filename willbe displayed in the playmist.
 =============================================================================
 == CHANGELOG                                                               ==
 =============================================================================
+
+== UPDATE 0.914 ==
+* Fix UTF8 to UTF16 conversion #14
+
 == UPDATE 0.913 ==
 
 * Updated to opus-1.5.2 and to libopusfile 0.12
